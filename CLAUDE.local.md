@@ -12,6 +12,7 @@ This document provides project overrides for claude should consider when doing w
 * When creating the Agent description markdowns we should always check:
   * https://docs.anthropic.com/en/docs/claude-code/sub-agents for the latest information
   * In the file format description where we define what tools are allowed the agent tool names should always have surrounding white spaces. Except before a comma.
+* Remember to always write down plans into the planning folder
 
 ## Project Documentation Strategies
 

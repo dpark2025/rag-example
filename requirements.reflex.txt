@@ -1,0 +1,32 @@
+# Reflex framework and core dependencies
+reflex>=0.4.0
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+
+# HTTP and API clients
+requests>=2.31.0
+httpx>=0.25.0
+python-multipart>=0.0.6
+
+# RAG system dependencies
+sentence-transformers>=2.2.2
+chromadb>=0.4.0
+
+# PDF processing
+PyPDF2>=3.0.1
+
+# Authentication and security
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+
+# File handling and utilities
+aiofiles>=23.0.0
+pillow>=10.0.0
+
+# WebSocket support
+websockets>=11.0.0
+
+# Development and testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
