@@ -10,6 +10,7 @@ class ChatMessage(rx.Base):
     role: str  # 'user' or 'assistant'
     content: str
     timestamp: datetime
+    timestamp_str: str = ""  # Formatted timestamp string
     sources: Optional[List[Dict[str, Any]]] = None
     metrics: Optional[Dict[str, Any]] = None
     message_id: str
@@ -67,10 +68,12 @@ class ChatState(rx.State):
         self.clear_error()
         
         # Create user message
+        now = datetime.now()
         user_message = ChatMessage(
             role="user",
             content=self.current_input.strip(),
-            timestamp=datetime.now(),
+            timestamp=now,
+            timestamp_str=now.strftime("%H:%M:%S"),
             message_id=f"user_{len(self.messages)}"
         )
         
@@ -103,6 +106,7 @@ class ChatState(rx.State):
                 role="assistant",
                 content=response.get("answer", "No response received"),
                 timestamp=end_time,
+                timestamp_str=end_time.strftime("%H:%M:%S"),
                 sources=response.get("sources", []),
                 metrics={
                     "response_time": response_time,
@@ -123,10 +127,12 @@ class ChatState(rx.State):
             self.show_error = True
             
             # Add error message to chat
+            error_time = datetime.now()
             error_message = ChatMessage(
                 role="assistant",
                 content=f"I'm sorry, I encountered an error: {str(e)}",
-                timestamp=datetime.now(),
+                timestamp=error_time,
+                timestamp_str=error_time.strftime("%H:%M:%S"),
                 message_id=f"error_{len(self.messages)}"
             )
             self.messages.append(error_message)
@@ -148,6 +154,20 @@ class ChatState(rx.State):
         if similarity_threshold is not None:
             self.similarity_threshold = similarity_threshold
     
+    def set_max_chunks(self, value: str):
+        """Set max chunks from input."""
+        try:
+            self.max_chunks = int(value) if value else 5
+        except ValueError:
+            self.max_chunks = 5
+    
+    def set_similarity_threshold(self, value: str):
+        """Set similarity threshold from input."""
+        try:
+            self.similarity_threshold = float(value) if value else 0.7
+        except ValueError:
+            self.similarity_threshold = 0.7
+    
     @rx.var
     def has_messages(self) -> bool:
         """Check if there are any messages."""
@@ -165,6 +185,18 @@ class ChatState(rx.State):
                 return message.sources
         
         return []
+    
+    @rx.var
+    def last_response_time_display(self) -> str:
+        """Format last response time for display."""
+        if self.last_response_time is None:
+            return ""
+        return f"Last response: {self.last_response_time:.2f}s"
+    
+    @rx.var
+    def total_messages_display(self) -> str:
+        """Format total messages for display."""
+        return f"{self.total_messages} messages"
     
     @rx.var
     def chat_stats(self) -> Dict[str, Any]:

@@ -1,24 +1,68 @@
+version: '3.8'
+
 services:
-  rag-app:
+  reflex-app:
     build:
       context: .
-      dockerfile: Dockerfile.rag-app
-    container_name: local-rag-app
+      dockerfile: Dockerfile.reflex
+    container_name: local-rag-reflex
     ports:
-      - "8501:8501"
+      - "3000:3000"  # Reflex frontend
+      - "8001:8001"  # Reflex backend (different from FastAPI)
+    volumes:
+      - ./data:/app/data:Z
+      - ./app:/app/app:Z
+    environment:
+      - PYTHONPATH=/app
+      - REFLEX_HOST=0.0.0.0
+      - REFLEX_PORT=3000
+      - API_BASE_URL=http://host.containers.internal:8000
+      - OLLAMA_HOST=host.containers.internal:11434
+    extra_hosts:
+      - "host.containers.internal:host-gateway"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/_health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      - rag-backend
+
+  rag-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: local-rag-backend
+    ports:
       - "8000:8000"
     volumes:
       - ./data:/app/data:Z
       - ./app:/app:Z
     environment:
       - PYTHONPATH=/app
+      - OLLAMA_HOST=host.containers.internal:11434
+    extra_hosts:
+      - "host.containers.internal:host-gateway"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: local-rag-chromadb
+    ports:
+      - "8002:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      - CHROMA_SERVER_HOST=0.0.0.0
+      - CHROMA_SERVER_HTTP_PORT=8000
+    restart: unless-stopped
 
 volumes:
   chroma_data:

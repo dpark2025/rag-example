@@ -5,6 +5,7 @@ Provides REST API endpoints for the RAG functionality
 
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 import uvicorn
@@ -53,6 +54,46 @@ class HealthResponse(BaseModel):
     document_count: int
 
 # API Endpoints
+@app.get("/")
+async def root():
+    """Root endpoint - redirect to API documentation"""
+    return RedirectResponse(url="/docs", status_code=307)
+
+@app.get("/info")
+async def api_info():
+    """API information and available endpoints"""
+    return {
+        "name": "Local RAG System API",
+        "version": "1.0.0",
+        "description": "Fully local RAG system with ChromaDB and Ollama",
+        "ui": "http://localhost:3000",
+        "documentation": "/docs",
+        "endpoints": {
+            "health": {
+                "method": "GET",
+                "path": "/health", 
+                "description": "Check system health status"
+            },
+            "query": {
+                "method": "POST",
+                "path": "/query",
+                "description": "Query the knowledge base",
+                "example": {"question": "What documents do you have?", "max_chunks": 3}
+            },
+            "documents": {
+                "add": {"method": "POST", "path": "/documents", "description": "Add documents to knowledge base"},
+                "upload": {"method": "POST", "path": "/documents/upload", "description": "Upload text files"},
+                "count": {"method": "GET", "path": "/documents/count", "description": "Get document count"},
+                "clear": {"method": "DELETE", "path": "/documents", "description": "Clear all documents"}
+            },
+            "settings": {
+                "get": {"method": "GET", "path": "/settings", "description": "Get RAG settings"},
+                "update": {"method": "POST", "path": "/settings", "description": "Update RAG settings"}
+            }
+        },
+        "quick_test": "curl http://localhost:8000/health"
+    }
+
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """Check system health"""

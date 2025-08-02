@@ -1,12 +1,12 @@
-# Fully Local RAG System with Docker
+# Fully Local RAG System with Reflex UI
 
 ## System Architecture (Completely Offline)
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Agent (UI)    │◄──►│   MCP Server     │◄──►│   ChromaDB      │
-│   - Streamlit   │    │   - RAG Tools    │    │   - Local Vec DB│
-│   - Tool calls  │    │   - Doc search   │    │   - Embeddings  │
+│  Reflex UI      │◄──►│   RAG Backend    │◄──►│   ChromaDB      │
+│  - Chat Interface│    │   - FastAPI      │    │   - Local Vec DB│
+│  - Port 3000    │    │   - Port 8000    │    │   - Embeddings  │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
          │                        │
          │                        ▼
@@ -17,26 +17,28 @@
                         └─────────────────┘
 ```
 
-All components run locally in Docker containers - no internet required after setup!
+All components run locally in containers - no internet required after setup!
 
 ## Project Structure
 
 ```
-local-rag-system/
+rag-example/
 ├── docker-compose.yml
-├── Dockerfile.rag-app
-├── Dockerfile.ollama
+├── Dockerfile.reflex
 ├── app/
-│   ├── main.py
-│   ├── rag_backend.py
-│   ├── mcp_server.py
-│   ├── agent_ui.py
-│   └── requirements.txt
+│   ├── reflex_app/          # Reflex UI application
+│   │   ├── components/      # UI components
+│   │   ├── state/           # State management
+│   │   ├── services/        # API client
+│   │   └── pages/           # Page routes
+│   ├── main.py              # FastAPI backend
+│   ├── rag_backend.py       # RAG processing engine
+│   ├── mcp_server.py        # MCP server
+│   └── requirements.txt     # Backend dependencies
+├── requirements.reflex.txt  # Reflex UI dependencies
 ├── data/
 │   ├── documents/
 │   └── chroma_db/
-├── models/
-│   └── ollama_models/
 └── README.md
 ```
 
@@ -542,14 +544,13 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 ```txt
-streamlit==1.29.0
-sentence-transformers==2.2.2
+# Backend dependencies for RAG system
+sentence-transformers==3.3.1
 chromadb==0.4.15
 requests==2.31.0
 python-multipart==0.0.6
-fastapi==0.104.1
-uvicorn==0.24.0
-asyncio-mqtt==0.16.1
+fastapi==0.115.0
+uvicorn==0.32.0
 python-dotenv==1.0.0
 ```
 
@@ -959,213 +960,23 @@ class LocalRAGSystem:
 rag_system = LocalRAGSystem()
 ```
 
-### app/agent_ui.py
-```python
-import streamlit as st
-import json
-import os
-from rag_backend import rag_system, LocalLLMClient
+### Reflex UI Implementation
 
-st.set_page_config(
-    page_title="Local RAG System",
-    page_icon="🤖",
-    layout="wide"
-)
+The Reflex UI provides a modern, reactive web interface for the RAG system. The implementation includes:
 
-def check_system_health():
-    """Check if all components are working"""
-    health_status = {
-        "embeddings": True,  # SentenceTransformers always works locally
-        "vector_db": True,   # ChromaDB always works locally
-        "llm": rag_system.llm_client.health_check()
-    }
-    return health_status
+- **Chat Interface**: Real-time messaging with message history and auto-scroll
+- **System Status**: Live health monitoring of all components
+- **Document Management**: Upload and manage documents in the knowledge base
+- **Source Attribution**: See which documents informed each response
+- **Performance Metrics**: Real-time efficiency tracking and token usage
 
-def main():
-    st.title("🤖 Fully Local RAG System")
-    st.write("Complete offline knowledge base - your data never leaves your machine!")
-    
-    # Sidebar
-    with st.sidebar:
-        st.header("📊 System Status")
-        
-        health = check_system_health()
-        
-        st.metric("Embedding Model", "✅ Online" if health["embeddings"] else "❌ Offline")
-        st.metric("Vector Database", "✅ Online" if health["vector_db"] else "❌ Offline")
-        st.metric("Local LLM", "✅ Online" if health["llm"] else "❌ Offline")
-        
-        if not health["llm"]:
-            st.error("⚠️ Ollama not responding. Check if container is running.")
-        
-        st.divider()
-        
-        # Document Management
-        st.header("📚 Document Management")
-        
-        # Current document count
-        doc_count = rag_system.collection.count()
-        st.metric("Documents in KB", doc_count)
-        
-        # Upload documents
-        with st.expander("Add Documents"):
-            title = st.text_input("Document Title")
-            content = st.text_area("Document Content", height=150)
-            source = st.text_input("Source (optional)", value="manual_upload")
-            
-            if st.button("Add Document", type="primary"):
-                if title and content:
-                    result = rag_system.add_documents([{
-                        "title": title,
-                        "content": content,
-                        "source": source
-                    }])
-                    st.success(result)
-                    st.rerun()
-                else:
-                    st.error("Please provide both title and content")
-        
-        # Bulk upload
-        with st.expander("Bulk Upload"):
-            uploaded_file = st.file_uploader("Upload text files", type=['txt'], accept_multiple_files=True)
-            
-            if uploaded_file and st.button("Process Files"):
-                documents = []
-                for file in uploaded_file:
-                    content = file.read().decode('utf-8')
-                    documents.append({
-                        "title": file.name,
-                        "content": content,
-                        "source": "file_upload"
-                    })
-                
-                if documents:
-                    result = rag_system.add_documents(documents)
-                    st.success(f"Processed {len(documents)} files: {result}")
-                    st.rerun()
-        
-        # Efficiency metrics in sidebar
-        with st.expander("⚡ Efficiency Settings"):
-            current_threshold = st.slider(
-                "Similarity Threshold", 
-                min_value=0.5, 
-                max_value=0.9, 
-                value=rag_system.similarity_threshold,
-                step=0.05,
-                help="Higher = more selective retrieval"
-            )
-            
-            max_context = st.slider(
-                "Max Context Tokens",
-                min_value=500,
-                max_value=4000,
-                value=rag_system.max_context_tokens,
-                step=250,
-                help="Adjust based on your LLM's capabilities"
-            )
-            
-            if st.button("Update Settings"):
-                rag_system.similarity_threshold = current_threshold
-                rag_system.max_context_tokens = max_context
-                st.success("Settings updated!")
-        
-        # Show efficiency metrics
-        if 'last_query_metrics' in st.session_state:
-            metrics = st.session_state.last_query_metrics
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Chunks Used", metrics.get('context_used', 0))
-            with col2:
-                st.metric("Context Tokens", metrics.get('context_tokens', 0))
-            with col3:
-                st.metric("Efficiency", f"{metrics.get('efficiency_ratio', 0):.3f}")
-        
-        # Sample documents
-        if st.button("Add Sample Documents"):
-            sample_docs = [
-                {
-                    "title": "Docker Basics",
-                    "content": "Docker is a containerization platform that allows you to package applications and their dependencies into lightweight, portable containers. Containers ensure consistency across different environments.",
-                    "source": "sample"
-                },
-                {
-                    "title": "Local RAG Systems",
-                    "content": "Retrieval-Augmented Generation (RAG) systems combine document retrieval with language generation. Local RAG systems run entirely on your machine, ensuring data privacy and eliminating API costs.",
-                    "source": "sample"
-                },
-                {
-                    "title": "Ollama Overview", 
-                    "content": "Ollama is a tool for running large language models locally. It supports models like Llama, Mistral, and Codellama. Models can be pulled and run with simple commands like 'ollama pull llama3.2'.",
-                    "source": "sample"
-                }
-            ]
-            
-            result = rag_system.add_documents(sample_docs)
-            st.success(result)
-            st.rerun()
-    
-    # Main chat interface
-    if 'messages' not in st.session_state:
-        st.session_state.messages = []
-    
-    # Display chat history
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            if message["role"] == "assistant" and "sources" in message:
-                st.write(message["content"])
-                if message["sources"]:
-                    with st.expander("📚 Sources"):
-                        for source in message["sources"]:
-                            st.write(f"• {source['title']} (Score: {source['score']})")
-            else:
-                st.write(message["content"])
-    
-    # Chat input
-    if prompt := st.chat_input("Ask me anything about your documents..."):
-        # Add user message
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.write(prompt)
-        
-        # Generate response
-        with st.chat_message("assistant"):
-            if not health["llm"]:
-                response = "❌ Sorry, the local language model is not available. Please check if Ollama is running."
-                sources = []
-            else:
-                with st.spinner("Searching knowledge base..."):
-                    result = rag_system.rag_query(prompt)
-                    response = result["answer"]
-                    sources = result["sources"]
-                    
-                    # Store metrics for efficiency display
-                    st.session_state.last_query_metrics = {
-                        'context_used': result.get('context_used', 0),
-                        'context_tokens': result.get('context_tokens', 0),
-                        'efficiency_ratio': result.get('efficiency_ratio', 0)
-                    }
-                
-                st.write(response)
-                
-                if sources:
-                    with st.expander("📚 Sources"):
-                        for source in sources:
-                            st.write(f"• {source['title']} (Score: {source['score']})")
-                    
-                    # Show efficiency info
-                    if 'context_tokens' in result:
-                        st.caption(f"💡 Used {result['context_tokens']} context tokens from {result['context_used']} chunks")
-        
-        # Add assistant response
-        st.session_state.messages.append({
-            "role": "assistant", 
-            "content": response,
-            "sources": sources
-        })
+The complete Reflex implementation is located in `app/reflex_app/` with:
+- `components/`: Reusable UI components (chat, forms, layouts)
+- `state/`: Application and chat state management
+- `services/`: API client for backend communication
+- `pages/`: Main application pages and routing
 
-if __name__ == "__main__":
-    main()
-```
+For detailed component code, see the Reflex application files in the project structure.
 
 ## Step 2: Docker Configuration
 
@@ -1194,15 +1005,15 @@ COPY app/ .
 # Create data directory
 RUN mkdir -p /app/data/chroma_db /app/data/documents
 
-# Expose Streamlit port
-EXPOSE 8501
+# Expose Reflex ports
+EXPOSE 3000 8001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD curl -f http://localhost:8501/_stcore/health || exit 1
+  CMD curl -f http://localhost:3000/_health || exit 1
 
-# Run Streamlit
-CMD ["streamlit", "run", "agent_ui.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]
+# Run Reflex
+CMD ["reflex", "run", "--frontend-port", "3000", "--backend-port", "8001", "--frontend-host", "0.0.0.0", "--backend-host", "0.0.0.0"]
 ```
 
 ### Dockerfile.ollama
@@ -1247,28 +1058,56 @@ services:
       retries: 3
       start_period: 120s
 
-  rag-app:
+  reflex-app:
     build:
       context: .
-      dockerfile: Dockerfile.rag-app
-    container_name: local-rag-app
+      dockerfile: Dockerfile.reflex
+    container_name: local-rag-reflex
     ports:
-      - "8501:8501"
+      - "3000:3000"  # Reflex frontend
+      - "8001:8001"  # Reflex backend (different from FastAPI)
     volumes:
-      - ./data:/app/data
-      - ./app:/app
+      - ./data:/app/data:Z
+      - ./app:/app/app:Z
     environment:
       - PYTHONPATH=/app
-    depends_on:
-      ollama:
-        condition: service_healthy
+      - REFLEX_HOST=0.0.0.0
+      - REFLEX_PORT=3000
+      - API_BASE_URL=http://host.containers.internal:8000
+      - OLLAMA_HOST=host.containers.internal:11434
+    extra_hosts:
+      - "host.containers.internal:host-gateway"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/_health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
+    depends_on:
+      - rag-backend
+
+  rag-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: local-rag-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data:Z
+      - ./app:/app:Z
+    environment:
+      - PYTHONPATH=/app
+      - OLLAMA_HOST=host.containers.internal:11434
+    extra_hosts:
+      - "host.containers.internal:host-gateway"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   ollama_models:
@@ -1308,7 +1147,7 @@ docker-compose exec ollama ollama pull llama3.2:3b
 
 echo "✅ Setup complete!"
 echo ""
-echo "🌐 Access your Local RAG System at: http://localhost:8501"
+echo "🌐 Access your Local RAG System at: http://localhost:3000"
 echo "🤖 Ollama API available at: http://localhost:11434"
 echo ""
 echo "To pull more models:"
@@ -1357,7 +1196,8 @@ pull-model:
 # Check system health
 health:
 	@echo "Checking system health..."
-	@curl -s http://localhost:8501/_stcore/health > /dev/null && echo "✅ RAG App: Healthy" || echo "❌ RAG App: Unhealthy"
+	@curl -s http://localhost:3000/_health > /dev/null && echo "✅ Reflex UI: Healthy" || echo "❌ Reflex UI: Unhealthy"
+	@curl -s http://localhost:8000/health > /dev/null && echo "✅ RAG Backend: Healthy" || echo "❌ RAG Backend: Unhealthy"
 	@curl -s http://localhost:11434/api/tags > /dev/null && echo "✅ Ollama: Healthy" || echo "❌ Ollama: Unhealthy"
 
 # Complete setup
@@ -1366,7 +1206,7 @@ setup: build start
 	@sleep 30
 	@echo "📥 Downloading initial model..."
 	@docker-compose exec ollama ollama pull llama3.2:3b
-	@echo "✅ Setup complete! Visit http://localhost:8501"
+	@echo "✅ Setup complete! Visit http://localhost:3000"
 ```
 
 ## Step 4: Quick Start Guide
@@ -1403,7 +1243,8 @@ make pull-model MODEL=mistral:7b
 ```
 
 ### 3. Access Your System
-- **RAG Interface**: http://localhost:8501
+- **Reflex UI**: http://localhost:3000
+- **FastAPI Backend**: http://localhost:8000
 - **Ollama API**: http://localhost:11434
 
 ## Step 5: Usage Examples
@@ -1496,7 +1337,7 @@ This system includes several efficiency optimizations to minimize context usage 
 ✅ **Persistent Storage** - Data survives container restarts  
 ✅ **Health Monitoring** - Built-in health checks  
 ✅ **Multiple Models** - Switch between different LLMs  
-✅ **Web Interface** - User-friendly Streamlit UI  
+✅ **Modern Web Interface** - Reactive Reflex UI with real-time updates  
 ✅ **Efficiency Optimized** - Smart chunking and adaptive retrieval
 ✅ **Token Management** - Configurable context limits and monitoring
 

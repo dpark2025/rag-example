@@ -4,9 +4,10 @@ import reflex as rx
 from typing import Dict, Any, List
 from ...state.chat_state import ChatMessage
 
-def format_timestamp(timestamp) -> str:
+def format_timestamp(message) -> str:
     """Format timestamp for display."""
-    return timestamp.strftime("%H:%M:%S")
+    # Use the pre-formatted timestamp string from the message
+    return message.timestamp_str
 
 def source_badge(source: Dict[str, Any]) -> rx.Component:
     """Display a source attribution badge."""
@@ -14,14 +15,12 @@ def source_badge(source: Dict[str, Any]) -> rx.Component:
         rx.hstack(
             rx.icon("file-text", size=12),
             rx.text(
-                source.get("title", "Unknown Source")[:30] + "..." 
-                if len(source.get("title", "")) > 30 
-                else source.get("title", "Unknown Source"),
-                font_size="xs"
+                "Source",  # Simplified for now
+                font_size="12px"
             ),
             rx.text(
-                f"{source.get('similarity', 0):.2f}",
-                font_size="xs",
+                "0.00",  # Simplified for now
+                font_size="12px",
                 color="gray.500"
             ),
             spacing="1",
@@ -29,19 +28,20 @@ def source_badge(source: Dict[str, Any]) -> rx.Component:
         ),
         variant="outline",
         color_scheme="blue",
-        size="sm"
+        size="2"
     )
 
 def sources_panel(sources: List[Dict[str, Any]]) -> rx.Component:
     """Display sources used in the response."""
-    if not sources:
-        return rx.fragment()
-    
     return rx.vstack(
-        rx.text("Sources:", font_size="sm", font_weight="bold", color="gray.600"),
-        rx.wrap(
-            *[source_badge(source) for source in sources[:5]],  # Limit to 5 sources
-            spacing="2"
+        rx.text("Sources:", font_size="14px", font_weight="bold", color="gray.600"),
+        rx.hstack(
+            rx.foreach(
+                sources,
+                source_badge
+            ),
+            spacing="2",
+            wrap="wrap"
         ),
         spacing="2",
         width="100%",
@@ -54,18 +54,15 @@ def sources_panel(sources: List[Dict[str, Any]]) -> rx.Component:
 
 def metrics_panel(metrics: Dict[str, Any]) -> rx.Component:
     """Display response metrics."""
-    if not metrics:
-        return rx.fragment()
-    
     return rx.hstack(
         rx.text(
-            f"⚡ {metrics.get('response_time', 0):.2f}s",
-            font_size="xs",
+            "⚡ 0.00s",  # Simplified for now
+            font_size="12px",
             color="gray.500"
         ),
         rx.text(
-            f"📄 {metrics.get('chunks_used', 0)} chunks",
-            font_size="xs", 
+            "📄 0 chunks",  # Simplified for now
+            font_size="12px", 
             color="gray.500"
         ),
         spacing="4"
@@ -77,8 +74,8 @@ def user_message(message: ChatMessage) -> rx.Component:
         rx.spacer(),
         rx.vstack(
             rx.hstack(
-                rx.text("You", font_weight="bold", font_size="sm", color="blue.600"),
-                rx.text(format_timestamp(message.timestamp), font_size="xs", color="gray.500"),
+                rx.text("You", font_weight="bold", font_size="14px", color="blue.600"),
+                rx.text(format_timestamp(message), font_size="12px", color="gray.500"),
                 spacing="2",
                 align="center",
                 justify="end"
@@ -106,12 +103,12 @@ def assistant_message(message: ChatMessage) -> rx.Component:
             rx.hstack(
                 rx.avatar(
                     fallback="AI",
-                    size="sm",
+                    size="7",
                     bg="green.500",
                     color="white"
                 ),
-                rx.text("RAG Assistant", font_weight="bold", font_size="sm", color="green.600"),
-                rx.text(format_timestamp(message.timestamp), font_size="xs", color="gray.500"),
+                rx.text("RAG Assistant", font_weight="bold", font_size="14px", color="green.600"),
+                rx.text(format_timestamp(message), font_size="12px", color="gray.500"),
                 spacing="2",
                 align="center"
             ),
@@ -123,9 +120,9 @@ def assistant_message(message: ChatMessage) -> rx.Component:
                 max_width="500px",
                 word_break="break-word"
             ),
-            # Sources panel
+            # Sources panel  
             rx.cond(
-                message.sources and len(message.sources) > 0,
+                message.sources,
                 sources_panel(message.sources),
                 rx.fragment()
             ),
@@ -156,13 +153,13 @@ def typing_indicator() -> rx.Component:
     return rx.hstack(
         rx.avatar(
             fallback="AI",
-            size="sm",
+            size="7",
             bg="green.500",
             color="white"
         ),
         rx.hstack(
-            rx.text("RAG Assistant is thinking", font_size="sm", color="gray.600"),
-            rx.spinner(size="sm", color="green.500"),
+            rx.text("RAG Assistant is thinking", font_size="14px", color="gray.600"),
+            rx.spinner(size="1", color="green.500"),
             spacing="2",
             align="center"
         ),

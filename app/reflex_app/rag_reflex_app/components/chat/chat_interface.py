@@ -10,8 +10,8 @@ def chat_header() -> rx.Component:
     """Chat interface header with stats."""
     return rx.hstack(
         rx.hstack(
-            rx.icon("message-circle", size=20, color="blue.500"),
-            rx.heading("RAG Chat", size="md", color="gray.700"),
+            rx.icon("message-circle", size=20, color="violet.400"),
+            rx.heading("RAG Chat", size="5", color="gray.100"),
             spacing="2",
             align="center"
         ),
@@ -20,7 +20,7 @@ def chat_header() -> rx.Component:
             rx.cond(
                 ChatState.total_messages > 0,
                 rx.badge(
-                    f"{ChatState.total_messages} messages",
+                    ChatState.total_messages_display,
                     color_scheme="blue",
                     variant="outline"
                 ),
@@ -31,7 +31,7 @@ def chat_header() -> rx.Component:
                 rx.button(
                     rx.icon("download", size=14),
                     "Export",
-                    size="sm",
+                    size="2",
                     variant="outline",
                     color_scheme="gray"
                 ),
@@ -42,30 +42,30 @@ def chat_header() -> rx.Component:
         width="100%",
         padding="4",
         border_bottom="1px solid",
-        border_color="gray.200",
-        bg="white"
+        border_color="rgba(255, 255, 255, 0.1)",
+        bg="rgba(255, 255, 255, 0.02)"
     )
 
 def empty_chat_state() -> rx.Component:
     """Display when there are no messages."""
     return rx.center(
         rx.vstack(
-            rx.icon("message-circle", size=64, color="blue.500"),
-            rx.heading("Welcome to RAG Chat", size="lg", color="gray.700"),
+            rx.icon("message-circle", size=64, color="violet.400"),
+            rx.heading("Welcome to RAG Chat", size="4", color="gray.100"),
             rx.text(
                 "Ask questions about your documents and get intelligent answers with source attribution.",
-                font_size="md",
-                color="gray.500",
+                font_size="16px",
+                color="gray.300",
                 text_align="center",
                 max_width="400px"
             ),
             rx.vstack(
-                rx.text("Features:", font_weight="bold", color="gray.600"),
+                rx.text("Features:", font_weight="bold", color="gray.200"),
                 rx.vstack(
-                    rx.text("• Semantic search across your documents", font_size="sm", color="gray.600"),
-                    rx.text("• Source attribution for transparency", font_size="sm", color="gray.600"),
-                    rx.text("• Adjustable similarity thresholds", font_size="sm", color="gray.600"),
-                    rx.text("• Real-time response metrics", font_size="sm", color="gray.600"),
+                    rx.text("• Semantic search across your documents", font_size="14px", color="gray.300"),
+                    rx.text("• Source attribution for transparency", font_size="14px", color="gray.300"),
+                    rx.text("• Adjustable similarity thresholds", font_size="14px", color="gray.300"),
+                    rx.text("• Real-time response metrics", font_size="14px", color="gray.300"),
                     align="start",
                     spacing="1"
                 ),

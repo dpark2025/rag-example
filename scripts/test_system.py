@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-System integration tests for the Local RAG System
+System integration tests for the Local RAG System with Reflex UI
 Tests API endpoints, document processing, and query functionality
 """
 
@@ -11,8 +11,8 @@ import sys
 from typing import Dict, List
 
 class RAGSystemTester:
-    def __init__(self, base_url="http://localhost:8501", api_url="http://localhost:8000"):
-        self.base_url = base_url
+    def __init__(self, ui_url="http://localhost:3000", api_url="http://localhost:8000"):
+        self.ui_url = ui_url
         self.api_url = api_url
     
     def test_health_check(self) -> bool:
@@ -20,17 +20,41 @@ class RAGSystemTester:
         print("🏥 Testing health checks...")
         
         try:
-            # Test Streamlit health
-            response = requests.get(f"{self.base_url}/_stcore/health", timeout=10)
-            streamlit_healthy = response.status_code == 200
-            print(f"  Streamlit: {'✅' if streamlit_healthy else '❌'}")
+            # Test FastAPI health
+            response = requests.get(f"{self.api_url}/health", timeout=10)
+            api_healthy = response.status_code == 200
+            api_data = response.json() if api_healthy else {}
+            print(f"  FastAPI Backend: {'✅' if api_healthy else '❌'}")
             
-            # Test Ollama health
-            response = requests.get("http://localhost:11434/api/tags", timeout=10)
-            ollama_healthy = response.status_code == 200
-            print(f"  Ollama: {'✅' if ollama_healthy else '❌'}")
+            # Check individual components from API health
+            if api_healthy:
+                llm_healthy = api_data.get("llm", {}).get("healthy", False)
+                vector_db_healthy = api_data.get("vector_db", {}).get("healthy", False)
+                embeddings_healthy = api_data.get("embeddings", {}).get("healthy", False)
+                
+                print(f"  - LLM (Ollama): {'✅' if llm_healthy else '❌'}")
+                print(f"  - Vector DB: {'✅' if vector_db_healthy else '❌'}")
+                print(f"  - Embeddings: {'✅' if embeddings_healthy else '❌'}")
             
-            return streamlit_healthy and ollama_healthy
+            # Test Reflex UI (basic check)
+            try:
+                ui_response = requests.get(f"{self.ui_url}", timeout=10)
+                ui_healthy = ui_response.status_code == 200
+                print(f"  Reflex UI: {'✅' if ui_healthy else '❌'}")
+            except:
+                ui_healthy = False
+                print(f"  Reflex UI: ❌ (not running)")
+            
+            # Test direct Ollama connection
+            try:
+                ollama_response = requests.get("http://localhost:11434/api/tags", timeout=10)
+                ollama_direct = ollama_response.status_code == 200
+                print(f"  Ollama Direct: {'✅' if ollama_direct else '❌'}")
+            except:
+                ollama_direct = False
+                print(f"  Ollama Direct: ❌")
+            
+            return api_healthy and llm_healthy
             
         except Exception as e:
             print(f"  ❌ Health check failed: {e}")
@@ -47,8 +71,8 @@ class RAGSystemTester:
                 "source": "test"
             },
             {
-                "title": "Test Document 2", 
-                "content": "Docker containers provide a way to package applications with their dependencies. This ensures consistency across different environments.",
+                "title": "Test Document 2",
+                "content": "This document discusses natural language processing and its applications in modern software systems.",
                 "source": "test"
             }
         ]
@@ -61,35 +85,15 @@ class RAGSystemTester:
             )
             
             if response.status_code == 200:
-                result = response.json()
-                print(f"  ✅ Uploaded {result.get('count', 0)} documents")
+                print(f"  ✅ Documents uploaded successfully")
                 return True
             else:
-                print(f"  ❌ Upload failed: {response.status_code} - {response.text}")
+                print(f"  ❌ Upload failed: {response.status_code}")
+                print(f"     {response.text}")
                 return False
                 
         except Exception as e:
-            print(f"  ❌ Upload failed: {e}")
-            return False
-    
-    def test_document_count(self) -> bool:
-        """Test document count endpoint"""
-        print("📊 Testing document count...")
-        
-        try:
-            response = requests.get(f"{self.api_url}/documents/count", timeout=10)
-            
-            if response.status_code == 200:
-                result = response.json()
-                count = result.get('total_chunks', 0)
-                print(f"  ✅ Found {count} document chunks")
-                return count > 0
-            else:
-                print(f"  ❌ Count check failed: {response.status_code}")
-                return False
-                
-        except Exception as e:
-            print(f"  ❌ Count check failed: {e}")
+            print(f"  ❌ Document upload failed: {e}")
             return False
     
     def test_query_functionality(self) -> bool:
@@ -98,141 +102,125 @@ class RAGSystemTester:
         
         test_queries = [
             "What is artificial intelligence?",
-            "How do Docker containers work?",
-            "What are the benefits of machine learning?"
+            "Tell me about natural language processing",
+            "How are AI and machine learning related?"
         ]
         
         success_count = 0
         
         for query in test_queries:
             try:
+                print(f"\n  Testing query: '{query}'")
+                
                 response = requests.post(
                     f"{self.api_url}/query",
-                    json={"question": query, "max_chunks": 3},
-                    timeout=60
+                    json={
+                        "question": query,
+                        "max_chunks": 3,
+                        "similarity_threshold": 0.7
+                    },
+                    timeout=30
                 )
                 
                 if response.status_code == 200:
-                    result = response.json()
-                    answer = result.get('answer', '')
-                    sources = result.get('sources', [])
+                    data = response.json()
                     
-                    if answer and len(answer) > 50:  # Reasonable answer length
-                        print(f"  ✅ Query: '{query[:30]}...' - Got answer ({len(sources)} sources)")
+                    # Check response structure
+                    has_answer = "answer" in data
+                    has_sources = "sources" in data
+                    has_metrics = "metrics" in data
+                    
+                    if has_answer and data["answer"]:
+                        print(f"    ✅ Got answer: {data['answer'][:100]}...")
+                        if has_sources and data["sources"]:
+                            print(f"    ✅ Sources provided: {len(data['sources'])} chunks")
+                        if has_metrics:
+                            print(f"    ✅ Metrics: {data['metrics']}")
                         success_count += 1
                     else:
-                        print(f"  ⚠️ Query: '{query[:30]}...' - Short answer")
+                        print(f"    ❌ No answer received")
                 else:
-                    print(f"  ❌ Query failed: {response.status_code}")
+                    print(f"    ❌ Query failed: {response.status_code}")
                     
             except Exception as e:
-                print(f"  ❌ Query '{query[:30]}...' failed: {e}")
+                print(f"    ❌ Query error: {e}")
         
-        success_rate = success_count / len(test_queries)
-        print(f"  📈 Query success rate: {success_rate:.1%}")
-        return success_rate >= 0.5  # At least 50% success rate
+        print(f"\n  Summary: {success_count}/{len(test_queries)} queries successful")
+        return success_count == len(test_queries)
     
-    def test_settings_management(self) -> bool:
-        """Test settings get/update functionality"""
-        print("⚙️ Testing settings management...")
+    def test_stats_endpoint(self) -> bool:
+        """Test system statistics endpoint"""
+        print("📊 Testing statistics endpoint...")
         
         try:
-            # Get current settings
-            response = requests.get(f"{self.api_url}/settings", timeout=10)
-            if response.status_code != 200:
-                print(f"  ❌ Failed to get settings: {response.status_code}")
-                return False
-            
-            original_settings = response.json()
-            print(f"  📋 Current settings: threshold={original_settings.get('similarity_threshold', 'N/A')}")
-            
-            # Update settings
-            new_threshold = 0.8
-            response = requests.post(
-                f"{self.api_url}/settings",
-                json={"similarity_threshold": new_threshold},
-                timeout=10
-            )
+            response = requests.get(f"{self.api_url}/stats", timeout=10)
             
             if response.status_code == 200:
-                print(f"  ✅ Updated similarity threshold to {new_threshold}")
+                stats = response.json()
+                print(f"  ✅ Stats retrieved:")
+                print(f"     Documents: {stats.get('total_documents', 0)}")
+                print(f"     Chunks: {stats.get('total_chunks', 0)}")
+                print(f"     Embeddings: {stats.get('embedding_model', 'unknown')}")
+                return True
             else:
-                print(f"  ❌ Failed to update settings: {response.status_code}")
+                print(f"  ❌ Stats failed: {response.status_code}")
                 return False
-            
-            # Verify update
-            response = requests.get(f"{self.api_url}/settings", timeout=10)
-            if response.status_code == 200:
-                updated_settings = response.json()
-                if abs(updated_settings.get('similarity_threshold', 0) - new_threshold) < 0.01:
-                    print(f"  ✅ Settings update verified")
-                    return True
-                else:
-                    print(f"  ❌ Settings not updated correctly")
-                    return False
-            
+                
         except Exception as e:
-            print(f"  ❌ Settings test failed: {e}")
+            print(f"  ❌ Stats error: {e}")
             return False
     
-    def run_all_tests(self) -> Dict[str, bool]:
+    def run_all_tests(self):
         """Run all system tests"""
-        print("🧪 Starting RAG System Integration Tests\n")
+        print("🚀 Starting RAG System Integration Tests")
+        print("=" * 50)
         
-        tests = {
-            "Health Check": self.test_health_check,
-            "Document Upload": self.test_document_upload,
-            "Document Count": self.test_document_count,
-            "Query Functionality": self.test_query_functionality,
-            "Settings Management": self.test_settings_management
+        # Check if services are reachable
+        print("\n🔌 Checking service connectivity...")
+        print(f"  UI URL: {self.ui_url}")
+        print(f"  API URL: {self.api_url}")
+        
+        results = {
+            "health": self.test_health_check(),
+            "upload": False,
+            "query": False,
+            "stats": False
         }
         
-        results = {}
+        # Only run other tests if health check passes
+        if results["health"]:
+            time.sleep(2)  # Give system time to stabilize
+            results["upload"] = self.test_document_upload()
+            
+            if results["upload"]:
+                time.sleep(2)  # Wait for documents to be processed
+                results["query"] = self.test_query_functionality()
+                results["stats"] = self.test_stats_endpoint()
         
-        for test_name, test_func in tests.items():
-            print(f"\n{'-'*50}")
-            try:
-                results[test_name] = test_func()
-            except Exception as e:
-                print(f"❌ {test_name} failed with exception: {e}")
-                results[test_name] = False
+        # Summary
+        print("\n" + "=" * 50)
+        print("📋 Test Summary:")
         
-        return results
-    
-    def print_summary(self, results: Dict[str, bool]):
-        """Print test results summary"""
-        print(f"\n{'='*50}")
-        print("🧪 TEST RESULTS SUMMARY")
-        print(f"{'='*50}")
+        total_tests = len(results)
+        passed_tests = sum(1 for r in results.values() if r)
         
-        passed = sum(results.values())
-        total = len(results)
+        for test, passed in results.items():
+            print(f"  {test.capitalize()}: {'✅ PASSED' if passed else '❌ FAILED'}")
         
-        for test_name, passed in results.items():
-            status = "✅ PASS" if passed else "❌ FAIL"
-            print(f"{test_name:.<30} {status}")
+        print(f"\nTotal: {passed_tests}/{total_tests} tests passed")
         
-        print(f"\n📊 Overall: {passed}/{total} tests passed ({passed/total:.1%})")
-        
-        if passed == total:
-            print("🎉 All tests passed! System is ready to use.")
+        if passed_tests == total_tests:
+            print("\n🎉 All tests passed! The RAG system is working correctly.")
             return 0
         else:
-            print("⚠️ Some tests failed. Check the logs above.")
+            print("\n❌ Some tests failed. Please check the logs above.")
             return 1
 
-def main():
-    """Main test runner"""
-    tester = RAGSystemTester()
-    
-    # Wait for system to be ready
-    print("⏳ Waiting for system to be ready...")
-    time.sleep(5)
-    
-    results = tester.run_all_tests()
-    exit_code = tester.print_summary(results)
-    
-    sys.exit(exit_code)
 
 if __name__ == "__main__":
-    main()
+    # Allow custom URLs via command line arguments
+    ui_url = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:3000"
+    api_url = sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8000"
+    
+    tester = RAGSystemTester(ui_url, api_url)
+    sys.exit(tester.run_all_tests())

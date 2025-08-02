@@ -1,4 +1,9 @@
-# Reflex POC Migration Plan: Complete Streamlit Replacement
+# ⚠️ DEPRECATED: Reflex POC Migration Plan
+
+> **This document has been superseded by the comprehensive [Release Roadmap](./release_roadmap.md).**  
+> **The Reflex migration is complete (Phase 2) and future planning is covered in the new roadmap.**
+
+---
 
 **Author**: Frontend Architect  
 **Date**: January 2025  

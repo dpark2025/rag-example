@@ -3,41 +3,33 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies (including Node.js for Reflex frontend)
 RUN apt-get update && apt-get install -y \
     curl \
     build-essential \
+    nodejs \
+    npm \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies
 COPY requirements.reflex.txt .
 RUN pip install --no-cache-dir -r requirements.reflex.txt
 
-# Copy application code
-COPY app/ ./app/
-COPY rxconfig.py .
+# Copy the complete reflex app structure
+COPY app/reflex_app/ ./
 
-# Create data directory
-RUN mkdir -p /app/data
-
-# Install Reflex and initialize
-RUN cd /app && reflex init --name rag_reflex_app --template blank
-
-# Copy our app files over the template
-COPY app/reflex_app/ ./rag_reflex_app/
-
-# Expose ports
-EXPOSE 3000 8001
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:3000/_health || exit 1
-
-# Environment variables
+# Set environment variables early
 ENV PYTHONPATH=/app
 ENV REFLEX_HOST=0.0.0.0
 ENV REFLEX_PORT=3000
-ENV API_BASE_URL=http://localhost:8000
+ENV API_BASE_URL=http://10.0.7.1:8000
 
-# Start command
-CMD ["reflex", "run", "--env", "prod", "--backend-host", "0.0.0.0", "--frontend-host", "0.0.0.0"]
+# Expose ports  
+EXPOSE 3000 8001
+
+# Health check - check if frontend is responding
+HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
+    CMD curl -f http://localhost:3000/ || exit 1
+
+# Start command with better error handling
+CMD ["sh", "-c", "reflex run --env=prod --backend-host=0.0.0.0 --frontend-host=0.0.0.0 || (echo 'Reflex failed to start' && sleep 30)"]

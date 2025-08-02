@@ -1,4 +1,4 @@
-streamlit==1.29.0
+# Backend dependencies for RAG system
 sentence-transformers==3.3.1
 chromadb==0.4.15
 requests==2.31.0

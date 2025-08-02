@@ -121,7 +121,12 @@ cd app/reflex_app && reflex run
 - **FastAPI Backend**: http://localhost:8000 (existing)
 
 **Next Actions:**
-1. Test Phase 2 chat interface with RAG backend
+1. **Runtime Testing**: Follow [guided_test.md](./guided_test.md) to validate Phase 2 functionality
 2. Implement document management in Phase 3
 3. Add PDF processing capabilities in Phase 4
 4. Complete UI enhancements and system integration
+
+**Testing Resources:**
+- `docs/guided_test.md` - Comprehensive runtime testing guide
+- `scripts/quick_test.py` - Component import verification
+- `scripts/test_reflex_phase2.py` - Structure verification

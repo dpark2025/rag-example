@@ -24,7 +24,7 @@ help:
 	@echo "  list-models     List available Ollama models"
 	@echo ""
 	@echo "🌐 Access Points:"
-	@echo "  Streamlit UI:   http://localhost:8501"
+	@echo "  Reflex UI:      http://localhost:3000"
 	@echo "  FastAPI Docs:   http://localhost:8000/docs"  
 	@echo "  Ollama API:     http://localhost:11434"
 	@echo ""
@@ -65,7 +65,7 @@ logs:
 
 # Shell into RAG app container
 shell-rag:
-	docker-compose -f docker-compose.docker.yml exec rag-app bash
+	docker-compose -f docker-compose.docker.yml exec rag-backend bash
 
 # Pull a new model (usage: make pull-model MODEL=llama3.2:8b)
 pull-model:
@@ -78,14 +78,16 @@ list-models:
 # Check system health
 health:
 	@echo "Checking system health..."
-	@curl -s http://localhost:8501/_stcore/health > /dev/null && echo "✅ RAG App: Healthy" || echo "❌ RAG App: Unhealthy"
+	@curl -s http://localhost:3000/_health > /dev/null && echo "✅ Reflex UI: Healthy" || echo "❌ Reflex UI: Unhealthy"
 	@curl -s http://localhost:11434/api/tags > /dev/null && echo "✅ Ollama: Healthy" || echo "❌ Ollama: Unhealthy"
 
 # Clean up containers and restart fresh
 clean:
 	@echo "🧹 Cleaning up containers..."
-	@docker stop local-rag-app 2>/dev/null || true
-	@docker rm local-rag-app 2>/dev/null || true
+	@docker stop local-rag-backend 2>/dev/null || true
+	@docker rm local-rag-backend 2>/dev/null || true
+	@docker stop local-rag-reflex 2>/dev/null || true
+	@docker rm local-rag-reflex 2>/dev/null || true
 	@docker-compose -f docker-compose.docker.yml down 2>/dev/null || true
 	@echo "✅ Cleanup complete"
 
@@ -99,4 +101,4 @@ setup: check-ollama build start
 	@sleep 10
 	@echo "📥 Checking for initial model..."
 	@ollama list | grep -q llama3.2:3b || ollama pull llama3.2:3b
-	@echo "✅ Setup complete! Visit http://localhost:8501"
+	@echo "✅ Setup complete! Visit http://localhost:3000"

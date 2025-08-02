@@ -1,4 +1,9 @@
-# RAG System Implementation Plan
+# ⚠️ DEPRECATED: RAG System Implementation Plan
+
+> **This document has been superseded by the comprehensive [Release Roadmap](./release_roadmap.md).**  
+> **Please refer to the new roadmap for current project planning and next steps.**
+
+---
 
 ## Overview
 This document outlines the implementation plan for building a fully local RAG (Retrieval-Augmented Generation) system using Docker containers, based on the architecture defined in `/docs/rag_system_architecture.md`.

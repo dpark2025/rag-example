@@ -4,110 +4,66 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **fully local RAG (Retrieval-Augmented Generation) system** designed to run completely offline using containers (Podman default, Docker alternative). The system combines document retrieval with local LLM generation to create an intelligent question-answering system that processes user documents without external API calls.
+This is a **fully local RAG (Retrieval-Augmented Generation) system** with a modern Reflex web interface. The system runs completely offline, combining document retrieval with local LLM generation to create an intelligent question-answering system that processes user documents without external API calls.
 
-**✅ Current Status**: Fully operational with automatic Ollama connectivity detection, dual-service containers (Streamlit + FastAPI), and smart host gateway resolution for seamless container-to-host communication.
+**✅ Current Status**: Reflex UI implementation complete (Phase 2) with chat interface, source attribution, and real-time updates. The system features automatic Ollama connectivity detection and smart host gateway resolution for seamless communication.
 
 ## Architecture
 
-The system uses a **3-component containerized architecture**:
+The system uses a **modern 3-tier architecture**:
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Agent (UI)    │◄──►│   RAG Backend    │◄──►│   ChromaDB      │
-│   - Streamlit   │    │   - FastAPI      │    │   - Local Vec DB│
-│   - Chat UI     │    │   - Smart chunk  │    │   - Embeddings  │
+│  Reflex UI      │◄──►│   RAG Backend    │◄──►│   ChromaDB      │
+│  - Chat Interface│    │   - FastAPI      │    │   - Local Vec DB│
+│  - Port 3000    │    │   - Smart chunk  │    │   - Embeddings  │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
          │                        │
          │                        ▼
          │              ┌─────────────────┐
          └─────────────►│   Local LLM     │
                         │   - Ollama      │
-                        │   - Container   │
+                        │   - Local Models │
                         └─────────────────┘
 ```
 
 **Core Components:**
-- **Streamlit UI** (`agent_ui.py`): Web interface for document upload and chat
+- **Reflex UI** (`app/reflex_app/`): Modern web interface with real-time chat
 - **FastAPI Backend** (`main.py`): REST API server with RAG endpoints
 - **RAG Engine** (`rag_backend.py`): Core processing with smart chunking and embedding
 - **MCP Server** (`mcp_server.py`): Model Context Protocol interface for tools
-- **Ollama**: Local LLM server for answer generation
+- **Ollama**: Local LLM server for answer generation (runs on host)
 - **ChromaDB**: Local vector database for document storage
 
 ## Development Commands
 
 ### Quick Start
 ```bash
-# Complete system setup (Podman - default)
-chmod +x setup.sh && ./setup.sh
+# Install dependencies
+pip install -r requirements.reflex.txt
+pip install -r app/requirements.txt
 
-# Using Makefile (Podman - default)
-make setup
+# Start RAG Backend
+cd app && python main.py
 
-# Docker alternative
-chmod +x setup-docker.sh && ./setup-docker.sh
-make -f Makefile.docker setup
-```
-
-### Container Management (Podman Default)
-```bash
-# Start all services
-podman-compose up -d
-
-# Stop services
-podman-compose down
-
-# View logs
-podman-compose logs -f
-
-# Health check
-make health
-```
-
-### Container Management (Docker Alternative)
-```bash
-# Start all services
-docker-compose -f docker-compose.docker.yml up -d
-
-# Stop services
-docker-compose -f docker-compose.docker.yml down
-
-# View logs
-docker-compose -f docker-compose.docker.yml logs -f
-
-# Health check
-make -f Makefile.docker health
+# Start Reflex UI (new terminal)
+cd app/reflex_app
+reflex init --name rag_reflex_app --template blank
+reflex run
 ```
 
 ### Development Workflow
 ```bash
-# Build containers (Podman)
-podman-compose build
+# Test Reflex components
+python scripts/test_reflex_phase2.py
 
-# Build containers (Docker)
-docker-compose -f docker-compose.docker.yml build
+# Quick component test
+python scripts/quick_test.py
 
-# Pull different LLM models
-make pull-model MODEL=llama3.2:8b
-make pull-model MODEL=mistral:7b
-
-# Access container shells
-make shell-rag      # RAG application container (Podman)
-make -f Makefile.docker shell-rag  # RAG application container (Docker)
-```
-
-### Testing
-```bash
-# Run system tests
-python scripts/test_system.py
-
-# Performance benchmarking
-python scripts/benchmark.py
-
-# Check API health
-curl http://localhost:8501/_stcore/health  # Streamlit
-curl http://localhost:11434/api/tags       # Ollama
+# Access interfaces
+# - Reflex UI: http://localhost:3000
+# - FastAPI Docs: http://localhost:8000/docs
+# - Ollama API: http://localhost:11434
 ```
 
 ## Key Architecture Patterns
@@ -143,40 +99,94 @@ The `/agents/` directory contains specialized agent configurations:
 ## Document Structure
 
 - **Documentation**: All technical docs in `/docs/`
+  - `reflex_migration_progress.md`: Migration phases and progress
+  - `guided_test.md`: Runtime testing guide
   - `rag_system_architecture.md`: Complete system implementation guide
-  - `Building a 3 part agentic RAG system.md`: Development conversation history
-- **Planning**: Project planning artifacts in `/planning/` (when created)
+- **Planning**: Project planning artifacts in `/planning/`
 - **Agents**: Agent role definitions in `/agents/`
 
 ## Technology Stack Rationale
 
-**FastAPI**: Chosen for automatic API documentation, type validation, async support, and modern Python features over Flask
-**Streamlit**: Selected for rapid UI development, Python-native approach, and data-centric components ideal for RAG interfaces
+**Reflex**: Modern Python web framework with real-time reactivity and type safety
+**FastAPI**: Automatic API documentation, type validation, async support, and modern Python features
 **ChromaDB**: Local vector database with simple API, built-in metadata support, and persistence
 **Ollama**: Local LLM server with simple API and model management (runs on host, auto-detected by containers)
-**Podman**: Default container runtime for rootless, secure containerization
-**Docker**: Alternative container runtime for broader compatibility
 **SentenceTransformers**: Local embedding generation using `all-MiniLM-L6-v2` model (384 dimensions, 80MB)
 
 ## Resource Requirements
 
 | Component | Minimum RAM | Recommended RAM |
 |-----------|-------------|-----------------|
-| RAG App | 2GB | 4GB |
+| Reflex UI | 512MB | 1GB |
+| RAG Backend | 2GB | 4GB |
 | Ollama + 3B Model | 4GB | 8GB |
 | Ollama + 8B Model | 8GB | 16GB |
 | **Total System** | **6GB** | **20GB** |
 
 ## Interface Access Points
 
-- **Streamlit UI**: http://localhost:8501 (primary interface)
+- **Reflex UI**: http://localhost:3000 (primary interface)
 - **FastAPI Docs**: http://localhost:8000/docs (API documentation)
 - **Ollama API**: http://localhost:11434 (LLM server)
+
+## Port Architecture
+
+The system uses a multi-port architecture for service separation and scalability:
+
+```
+┌─────────────────┐    WebSocket    ┌─────────────────┐    HTTP Calls    ┌─────────────────┐
+│  Frontend UI    │◄──────────────►│ Reflex Backend  │◄───────────────►│   RAG Backend   │
+│  Port 3000      │                │  Port 8001      │                 │   Port 8000     │
+│  (React)        │                │  (State Mgmt)   │                 │  (RAG Engine)   │
+└─────────────────┘                └─────────────────┘                 └─────────────────┘
+         │                                   │                                   │
+         │                                   │                                   ▼
+         │                                   │                         ┌─────────────────┐
+         │                                   │                         │   ChromaDB      │
+         │                                   │                         │   Port 8002     │
+         │                                   │                         │   (Vector DB)   │
+         │                                   │                         └─────────────────┘
+         │                                   │
+         └───────────────────────────────────┼─────────────────────────────────────────────┐
+                                             │                                             │
+                                             ▼                                             ▼
+                                   ┌─────────────────┐                           ┌─────────────────┐
+                                   │   Local LLM     │                           │   All Services  │
+                                   │   Port 11434    │                           │   Auto-detected │
+                                   │   (Ollama)      │                           │   by containers │
+                                   └─────────────────┘                           └─────────────────┘
+```
+
+### Port Assignments
+
+| Port | Service | Purpose | Technology |
+|------|---------|---------|------------|
+| **3000** | Reflex Frontend | User interface (React) | React/JavaScript |
+| **8001** | Reflex Backend | State management, WebSocket | Python/FastAPI |
+| **8000** | RAG Backend | Document processing, LLM queries | FastAPI/Python |
+| **8002** | ChromaDB | Vector database storage | ChromaDB |
+| **11434** | Ollama | Local LLM inference | Ollama/Go |
+
+### Communication Flow
+
+1. **User Interaction**: Browser → Port 3000 (React UI)
+2. **State Updates**: Port 3000 ↔ Port 8001 (WebSocket)
+3. **RAG Queries**: Port 8001 → Port 8000 (HTTP/REST)
+4. **Vector Search**: Port 8000 → Port 8002 (HTTP)
+5. **LLM Generation**: Port 8000 → Port 11434 (HTTP)
+
+### Why This Architecture?
+
+- **Separation of Concerns**: UI logic vs. business logic vs. data storage
+- **Real-time Updates**: WebSocket for instant UI feedback
+- **Scalability**: Independent scaling of each service
+- **Development**: Can develop/test each service separately
+- **Framework Design**: Follows Reflex's dual-backend pattern
 
 ## Important Implementation Details
 
 ### Document Upload Methods
-1. **Streamlit UI**: Manual entry, file upload, bulk processing
+1. **Reflex UI**: Manual entry, file upload, bulk processing (Phase 3)
 2. **REST API**: Programmatic uploads via `/documents` endpoints  
 3. **MCP Protocol**: Tool-based integration for agent systems
 
@@ -189,21 +199,28 @@ The system uses a two-phase approach:
 - All components run offline after initial setup
 - No external API dependencies 
 - Data never leaves the local machine
-- Persistent storage survives container restarts
+- Persistent storage survives restarts
 - Smart host gateway detection for seamless Ollama connectivity
-- Lazy initialization ensures proper container environment setup
 
 ## Development Guidelines
 
 - Follow existing patterns in `rag_backend.py` for RAG functionality
 - Use Pydantic models for API validation in FastAPI endpoints
 - Implement proper error handling and logging throughout
-- Add comprehensive tests for new RAG features
+- Add comprehensive tests for new features
 - Monitor token usage and efficiency metrics
-- Use absolute paths in container configurations
+- Use relative paths in code and configurations
 - Follow the project's emphasis on local-first, privacy-preserving design
-- Prefer Podman commands in examples (default), provide Docker alternatives when relevant
-- Remember that code changes require container rebuilds (`make build` then `make start`)
+- Remember that code changes require rebuilds when using containers
 - Use diagnostic scripts in `/scripts/` directory for troubleshooting
+
+## Current Development Status
+
+- ✅ **Phase 1**: Foundation Setup - Complete
+- ✅ **Phase 2**: Chat Interface - Complete
+- 🔄 **Phase 3**: Document Management - Next
+- ⏳ **Phase 4**: PDF Processing - Planned
+- ⏳ **Phase 5**: Enhanced UI - Planned
+- ⏳ **Phase 6**: System Integration - Planned
 
 The system is designed for rapid development and deployment while maintaining production-ready performance and comprehensive RAG capabilities.

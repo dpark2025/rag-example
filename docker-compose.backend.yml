@@ -1,33 +1,6 @@
 version: '3.8'
 
 services:
-  reflex-app:
-    build:
-      context: .
-      dockerfile: Dockerfile.reflex
-    container_name: local-rag-reflex
-    ports:
-      - "3000:3000"  # Reflex frontend
-      - "8001:8001"  # Reflex backend (different from FastAPI)
-    volumes:
-      - ./data:/app/data:Z
-      - ./app:/app/app:Z
-    environment:
-      - PYTHONPATH=/app
-      - REFLEX_HOST=0.0.0.0
-      - REFLEX_PORT=3000
-      - API_BASE_URL=http://10.0.7.1:8000
-      - OLLAMA_HOST=10.0.7.1:11434
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/_health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    depends_on:
-      - rag-backend
-
   rag-backend:
     build:
       context: .

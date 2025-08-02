@@ -28,8 +28,8 @@ def error_fallback(error_message: str = "Something went wrong") -> rx.Component:
     return rx.center(
         rx.vstack(
             rx.icon("alert-triangle", size=48, color="red.500"),
-            rx.text(error_message, font_size="lg", color="red.600"),
-            rx.text("Please try refreshing the page", font_size="sm", color="gray.600"),
+            rx.text(error_message, font_size="18px", color="red.600"),
+            rx.text("Please try refreshing the page", font_size="14px", color="gray.600"),
             spacing="4",
             align="center",
             padding="8"

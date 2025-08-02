@@ -1,3 +1,4 @@
+This is the original chat transcript I had with Claude to do the initial design of this project.
 ---
 title: "Building a 3 part agentic RAG system"
 source: "https://claude.ai/chat/9b49b6a3-4c3f-456e-a450-09fcb314044d"
@@ -6,6 +7,7 @@ published:
 created: 2025-08-01
 description: "Talk with Claude, an AI assistant from Anthropic"
 tags:
+
   - "clippings"
 ---
 Hi Claude! Could you help me make sense of these ideas? If you need more information from me, ask me 1-2 key questions right away. If you think I should upload any documents that would help you do a better job, let me know. You can use the tools you have access to — like Google Drive, web search, etc. — if they’ll help you better accomplish this task. Do not use analysis tool. Please keep your responses friendly, brief and conversational.
