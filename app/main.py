@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from typing import List, Dict, Optional
 import uvicorn
 import logging
-from rag_backend import rag_system
+from rag_backend import get_rag_system
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -57,11 +57,13 @@ class HealthResponse(BaseModel):
 async def health_check():
     """Check system health"""
     try:
+        rag_sys = get_rag_system()
+        
         # Check LLM
-        llm_healthy = rag_system.llm_client.health_check()
+        llm_healthy = rag_sys.llm_client.health_check()
         
         # Check vector database
-        doc_count = rag_system.collection.count()
+        doc_count = rag_sys.collection.count()
         
         return HealthResponse(
             status="healthy" if llm_healthy else "degraded",
@@ -80,8 +82,9 @@ async def health_check():
 async def add_documents(documents: List[Document]):
     """Add documents to the knowledge base"""
     try:
+        rag_sys = get_rag_system()
         doc_dicts = [doc.dict() for doc in documents]
-        result = rag_system.add_documents(doc_dicts)
+        result = rag_sys.add_documents(doc_dicts)
         return {"message": result, "count": len(documents)}
     except Exception as e:
         logger.error(f"Error adding documents: {e}")
@@ -103,7 +106,8 @@ async def upload_files(files: List[UploadFile] = File(...)):
                 "source": "file_upload"
             })
         
-        result = rag_system.add_documents(documents)
+        rag_sys = get_rag_system()
+        result = rag_sys.add_documents(documents)
         return {"message": result, "files_processed": len(files)}
     
     except Exception as e:
@@ -114,7 +118,8 @@ async def upload_files(files: List[UploadFile] = File(...)):
 async def query_knowledge_base(request: QueryRequest):
     """Query the knowledge base"""
     try:
-        result = rag_system.rag_query(request.question, max_chunks=request.max_chunks)
+        rag_sys = get_rag_system()
+        result = rag_sys.rag_query(request.question, max_chunks=request.max_chunks)
         return QueryResponse(**result)
     except Exception as e:
         logger.error(f"Error processing query: {e}")
@@ -124,7 +129,8 @@ async def query_knowledge_base(request: QueryRequest):
 async def get_document_count():
     """Get total number of document chunks"""
     try:
-        count = rag_system.collection.count()
+        rag_sys = get_rag_system()
+        count = rag_sys.collection.count()
         return {"total_chunks": count}
     except Exception as e:
         logger.error(f"Error getting document count: {e}")
@@ -134,7 +140,8 @@ async def get_document_count():
 async def clear_documents():
     """Clear all documents from the knowledge base"""
     try:
-        rag_system.collection.delete(where={})
+        rag_sys = get_rag_system()
+        rag_sys.collection.delete(where={})
         return {"message": "All documents cleared"}
     except Exception as e:
         logger.error(f"Error clearing documents: {e}")
@@ -143,11 +150,12 @@ async def clear_documents():
 @app.get("/settings")
 async def get_settings():
     """Get current RAG system settings"""
+    rag_sys = get_rag_system()
     return {
-        "similarity_threshold": rag_system.similarity_threshold,
-        "max_context_tokens": rag_system.max_context_tokens,
-        "chunk_size": rag_system.chunk_size,
-        "chunk_overlap": rag_system.chunk_overlap
+        "similarity_threshold": rag_sys.similarity_threshold,
+        "max_context_tokens": rag_sys.max_context_tokens,
+        "chunk_size": rag_sys.chunk_size,
+        "chunk_overlap": rag_sys.chunk_overlap
     }
 
 @app.post("/settings")
@@ -159,14 +167,15 @@ async def update_settings(
 ):
     """Update RAG system settings"""
     try:
+        rag_sys = get_rag_system()
         if similarity_threshold is not None:
-            rag_system.similarity_threshold = similarity_threshold
+            rag_sys.similarity_threshold = similarity_threshold
         if max_context_tokens is not None:
-            rag_system.max_context_tokens = max_context_tokens
+            rag_sys.max_context_tokens = max_context_tokens
         if chunk_size is not None:
-            rag_system.chunk_size = chunk_size
+            rag_sys.chunk_size = chunk_size
         if chunk_overlap is not None:
-            rag_system.chunk_overlap = chunk_overlap
+            rag_sys.chunk_overlap = chunk_overlap
         
         return {"message": "Settings updated successfully"}
     except Exception as e:

@@ -8,10 +8,12 @@ services:
       - "8501:8501"
       - "8000:8000"
     volumes:
-      - ./data:/app/data:Z
-      - ./app:/app:Z
+      - ./data:/app/data
+      - ./app:/app
     environment:
       - PYTHONPATH=/app
+    extra_hosts:
+      - "host.containers.internal:host-gateway"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]

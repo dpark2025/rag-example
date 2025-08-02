@@ -1,40 +1,107 @@
 # Local RAG System 🤖
 
-A **fully local RAG (Retrieval-Augmented Generation) system** that runs completely offline using Docker containers. This system combines efficient document retrieval with local LLM generation to create an intelligent question-answering system that processes your documents without external API calls.
+A **fully local RAG (Retrieval-Augmented Generation) system** that runs completely offline using containers (Podman or Docker). This system combines efficient document retrieval with local LLM generation to create an intelligent question-answering system that processes your documents without external API calls.
+
+**✅ Current Status**: Fully operational with Podman-first architecture, automatic Ollama connectivity, and comprehensive RAG capabilities.
 
 ## 🚀 Quick Start
 
-### Option 1: Automated Setup
+### Prerequisites
+
+**1. Install Ollama** (required for local LLM):
+```bash
+# macOS/Linux
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# Or visit https://ollama.ai/download for other options
+```
+
+**2. Install Container Runtime** (choose one):
+
+**Option A: Podman** (recommended - rootless and secure)
+```bash
+# macOS
+brew install podman
+pip install podman-compose
+
+# Linux - see https://podman.io/getting-started/installation
+```
+
+**Option B: Docker** (alternative)
+```bash
+# Visit https://docs.docker.com/get-docker/ for installation
+```
+
+**3. Start Ollama** (if not automatically started):
+```bash
+ollama serve
+```
+
+### Setup Options
+
+#### Podman Setup (Default - Recommended)
+
+**Option 1: Automated Setup**
 ```bash
 # Clone or navigate to project directory
 cd rag-example
 
-# Run automated setup
+# Run automated setup (checks Ollama automatically)
 chmod +x setup.sh && ./setup.sh
 ```
 
-### Option 2: Using Makefile
+**Option 2: Using Makefile**
 ```bash
 make setup
 ```
 
-### Option 3: Manual Setup
+**Option 3: Manual Setup**
 ```bash
-# Build containers
-docker-compose build
+# Ensure Ollama is running
+make check-ollama
 
-# Start services
-docker-compose up -d
+# Build and start RAG application
+podman-compose build
+podman-compose up -d
 
 # Download initial model
-docker-compose exec ollama ollama pull llama3.2:3b
+ollama pull llama3.2:3b
+```
+
+#### Docker Setup (Alternative)
+
+**Option 1: Automated Setup**
+```bash
+# Clone or navigate to project directory
+cd rag-example
+
+# Run automated setup for Docker
+chmod +x setup-docker.sh && ./setup-docker.sh
+```
+
+**Option 2: Using Docker Makefile**
+```bash
+make -f Makefile.docker setup
+```
+
+**Option 3: Manual Setup**
+```bash
+# Ensure Ollama is running
+make -f Makefile.docker check-ollama
+
+# Build and start RAG application with Docker
+docker-compose -f docker-compose.docker.yml build
+docker-compose -f docker-compose.docker.yml up -d
+
+# Download initial model
+ollama pull llama3.2:3b
 ```
 
 ## 🌐 Access Your System
 
 - **Streamlit UI**: http://localhost:8501 (primary interface)
 - **FastAPI Docs**: http://localhost:8000/docs (API documentation)
-- **Ollama API**: http://localhost:11434 (LLM server)
+- **Local Ollama API**: http://localhost:11434 (LLM server)
 
 ## ✨ Features
 
@@ -47,7 +114,9 @@ docker-compose exec ollama ollama pull llama3.2:3b
 - ✅ **Web Interface** - User-friendly Streamlit UI
 - ✅ **REST API** - Full FastAPI backend with auto-documentation
 - ✅ **MCP Protocol** - Standardized tool interface
-- ✅ **Docker Containerized** - Easy deployment and scaling
+- ✅ **Containerized** - Easy deployment with Podman (default) or Docker
+- ✅ **Auto-Detection** - Smart Ollama connectivity from containers
+- ✅ **Dual Services** - Both Streamlit UI and FastAPI running simultaneously
 
 ## 🏗️ Architecture
 
@@ -120,19 +189,63 @@ make pull-model MODEL=codellama:34b
 
 ## 🛠️ Development Commands
 
-### Container Management
+### Podman Commands (Default)
+
+**Container Management**
 ```bash
+make help           # Show all available commands
 make build          # Build all containers
 make start          # Start services
 make stop           # Stop services
 make logs           # View logs
 make health         # Check system health
+make clean          # Clean up containers
+make restart        # Clean restart
 ```
 
-### Shell Access
+**Shell Access**
 ```bash
 make shell-rag      # Access RAG app container
-make shell-ollama   # Access Ollama container
+```
+
+### Docker Commands (Alternative)
+
+**Container Management**
+```bash
+make -f Makefile.docker help           # Show all available commands
+make -f Makefile.docker build          # Build all containers
+make -f Makefile.docker start          # Start services  
+make -f Makefile.docker stop           # Stop services
+make -f Makefile.docker logs           # View logs
+make -f Makefile.docker health         # Check system health
+make -f Makefile.docker clean          # Clean up containers
+make -f Makefile.docker restart        # Clean restart
+```
+
+**Shell Access**
+```bash
+make -f Makefile.docker shell-rag      # Access RAG app container
+```
+
+**Troubleshooting Container Name Conflicts**
+```bash
+# Podman (Default)
+./fix-container.sh
+
+# Docker (Alternative)
+./fix-container-docker.sh
+```
+
+**Diagnostic Scripts**
+```bash
+# Debug container connectivity
+./scripts/debug-container.sh
+
+# Debug Ollama connection from container
+./scripts/debug-ollama-connection.sh
+
+# Full system diagnosis and rebuild
+./scripts/diagnose-and-fix.sh
 ```
 
 ### Testing
@@ -210,39 +323,56 @@ Measures:
 
 ### Check System Status
 ```bash
+# Podman (Default)
 make health
-docker-compose ps
+podman-compose ps
+
+# Docker (Alternative)  
+make -f Makefile.docker health
+docker-compose -f docker-compose.docker.yml ps
 ```
 
 ### View Logs
 ```bash
-make logs                    # All services
-docker-compose logs ollama   # Ollama only
-docker-compose logs rag-app  # RAG app only
+# Podman (Default)
+make logs                           # All services
+podman-compose logs rag-app         # RAG app only
+
+# Docker (Alternative)
+make -f Makefile.docker logs        # All services  
+docker-compose -f docker-compose.docker.yml logs rag-app  # RAG app only
 ```
 
 ### Common Issues
 
 **Ollama not responding:**
 ```bash
-docker-compose restart ollama
-docker-compose exec ollama ollama list  # Check available models
+# Check if Ollama is running on host
+curl http://localhost:11434/api/tags
+
+# Restart if needed  
+ollama serve
+
+# Container should auto-detect working Ollama host address
 ```
 
 **Out of memory:**
 - Use smaller models (3B instead of 8B)
 - Reduce `max_context_tokens` in settings
-- Increase Docker memory limits
+- Increase container memory limits
 
 **Slow responses:**
-- Check if model is fully loaded: `docker-compose logs ollama`
-- Reduce similarity threshold for more results
+- Check if Ollama model is fully loaded: `ollama list`
+- Reduce similarity threshold for more results  
 - Use faster models like `phi3:mini`
 
 ### Clean Restart
 ```bash
-docker-compose down
-docker-compose up -d
+# Podman (Default)
+make restart
+
+# Docker (Alternative) 
+make -f Makefile.docker restart
 ```
 
 ## 📁 Project Structure
@@ -266,11 +396,13 @@ rag-example/
 ├── docs/                  # Documentation
 ├── agents/                # Agent configurations
 ├── planning/              # Project planning
-├── docker-compose.yml     # Service orchestration
+├── docker-compose.yml     # Podman service orchestration (default)
+├── docker-compose.docker.yml  # Docker service orchestration (alternative)
 ├── Dockerfile.rag-app     # RAG app container
-├── Dockerfile.ollama      # Ollama container
-├── setup.sh              # Automated setup
-├── Makefile              # Development commands
+├── setup.sh              # Automated Podman setup (default)
+├── setup-docker.sh       # Automated Docker setup (alternative)
+├── Makefile              # Podman development commands (default)
+├── Makefile.docker       # Docker development commands (alternative)
 └── README.md             # This file
 ```
 

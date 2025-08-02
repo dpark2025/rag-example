@@ -1,15 +1,15 @@
 .PHONY: build start stop logs shell-rag pull-model health check-ollama clean restart help
 
-# Show help information  
+# Show help information
 help:
-	@echo "🐳 Local RAG System - Podman Commands (Default)"
-	@echo "=============================================="
+	@echo "🐳 Local RAG System - Docker Commands (Alternative)"
+	@echo "================================================="
 	@echo ""
 	@echo "📋 Setup & Management:"
 	@echo "  setup           Complete system setup (check-ollama + build + start + model)"
 	@echo "  check-ollama    Verify Ollama is installed and running"
-	@echo "  build           Build RAG application container with Podman"
-	@echo "  start           Start RAG services with Podman (requires Ollama running)"
+	@echo "  build           Build RAG application container with Docker"
+	@echo "  start           Start RAG services with Docker (requires Ollama running)"
 	@echo "  stop            Stop RAG services"
 	@echo "  restart         Clean restart (clean + build + start)"
 	@echo "  clean           Remove existing containers for fresh start"
@@ -20,7 +20,7 @@ help:
 	@echo "  shell-rag       Access RAG application container shell"
 	@echo ""
 	@echo "🤖 Model Management:"
-	@echo "  pull-model      Download Ollama model (usage: make pull-model MODEL=llama3.2:8b)"
+	@echo "  pull-model      Download Ollama model (usage: make -f Makefile.docker pull-model MODEL=llama3.2:8b)"
 	@echo "  list-models     List available Ollama models"
 	@echo ""
 	@echo "🌐 Access Points:"
@@ -29,15 +29,15 @@ help:
 	@echo "  Ollama API:     http://localhost:11434"
 	@echo ""
 	@echo "🛠️ Troubleshooting:"
-	@echo "  ./fix-container.sh            Fix container name conflicts"
-	@echo "  make clean && make start      Fresh restart"
+	@echo "  ./fix-container-docker.sh          Fix container name conflicts"
+	@echo "  make -f Makefile.docker clean && make -f Makefile.docker start    Fresh restart"
 	@echo ""
 	@echo "💡 Examples:"
-	@echo "  make setup                    # Full setup"
-	@echo "  make pull-model MODEL=phi3:mini    # Download small model"
-	@echo "  make restart                  # Clean restart"
+	@echo "  make -f Makefile.docker setup                    # Full setup"
+	@echo "  make -f Makefile.docker pull-model MODEL=phi3:mini    # Download small model"
+	@echo "  make -f Makefile.docker restart                  # Clean restart"
 	@echo ""
-	@echo "🔄 For Docker: Use 'make -f Makefile.docker <command>' instead"
+	@echo "🔄 For Podman (Default): Use 'make <command>' instead"
 	@echo ""
 
 # Check if Ollama is installed and running
@@ -47,27 +47,27 @@ check-ollama:
 	@curl -s http://localhost:11434/api/tags >/dev/null 2>&1 || { echo "❌ Ollama not running. Run: ollama serve"; exit 1; }
 	@echo "✅ Ollama is installed and running"
 
-# Build RAG container with Podman
+# Build RAG container with Docker
 build:
-	podman-compose build
+	docker-compose -f docker-compose.docker.yml build
 
-# Start the RAG application with Podman
+# Start the RAG application with Docker
 start: check-ollama
-	podman-compose up -d
+	docker-compose -f docker-compose.docker.yml up -d
 
 # Stop the RAG application
 stop:
-	podman-compose down
+	docker-compose -f docker-compose.docker.yml down
 
 # View logs
 logs:
-	podman-compose logs -f
+	docker-compose -f docker-compose.docker.yml logs -f
 
 # Shell into RAG app container
 shell-rag:
-	podman-compose exec rag-app bash
+	docker-compose -f docker-compose.docker.yml exec rag-app bash
 
-# Pull a new model (usage: make -f Makefile.podman pull-model MODEL=llama3.2:8b)
+# Pull a new model (usage: make pull-model MODEL=llama3.2:8b)
 pull-model:
 	ollama pull $(MODEL)
 
@@ -84,9 +84,9 @@ health:
 # Clean up containers and restart fresh
 clean:
 	@echo "🧹 Cleaning up containers..."
-	@podman stop local-rag-app 2>/dev/null || true
-	@podman rm local-rag-app 2>/dev/null || true
-	@podman-compose down 2>/dev/null || true
+	@docker stop local-rag-app 2>/dev/null || true
+	@docker rm local-rag-app 2>/dev/null || true
+	@docker-compose -f docker-compose.docker.yml down 2>/dev/null || true
 	@echo "✅ Cleanup complete"
 
 # Restart with clean slate

@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **fully local RAG (Retrieval-Augmented Generation) system** designed to run completely offline using Docker containers. The system combines document retrieval with local LLM generation to create an intelligent question-answering system that processes user documents without external API calls.
+This is a **fully local RAG (Retrieval-Augmented Generation) system** designed to run completely offline using containers (Podman default, Docker alternative). The system combines document retrieval with local LLM generation to create an intelligent question-answering system that processes user documents without external API calls.
+
+**✅ Current Status**: Fully operational with automatic Ollama connectivity detection, dual-service containers (Streamlit + FastAPI), and smart host gateway resolution for seamless container-to-host communication.
 
 ## Architecture
 
@@ -37,40 +39,62 @@ The system uses a **3-component containerized architecture**:
 
 ### Quick Start
 ```bash
-# Complete system setup
+# Complete system setup (Podman - default)
 chmod +x setup.sh && ./setup.sh
 
-# Using Makefile (alternative)
+# Using Makefile (Podman - default)
 make setup
+
+# Docker alternative
+chmod +x setup-docker.sh && ./setup-docker.sh
+make -f Makefile.docker setup
 ```
 
-### Container Management
+### Container Management (Podman Default)
 ```bash
 # Start all services
-docker-compose up -d
+podman-compose up -d
 
 # Stop services
-docker-compose down
+podman-compose down
 
 # View logs
-docker-compose logs -f
+podman-compose logs -f
 
 # Health check
 make health
 ```
 
+### Container Management (Docker Alternative)
+```bash
+# Start all services
+docker-compose -f docker-compose.docker.yml up -d
+
+# Stop services
+docker-compose -f docker-compose.docker.yml down
+
+# View logs
+docker-compose -f docker-compose.docker.yml logs -f
+
+# Health check
+make -f Makefile.docker health
+```
+
 ### Development Workflow
 ```bash
-# Build containers
-docker-compose build
+# Build containers (Podman)
+podman-compose build
+
+# Build containers (Docker)
+docker-compose -f docker-compose.docker.yml build
 
 # Pull different LLM models
 make pull-model MODEL=llama3.2:8b
 make pull-model MODEL=mistral:7b
 
 # Access container shells
-make shell-rag      # RAG application container
-make shell-ollama   # Ollama LLM container
+make shell-rag      # RAG application container (Podman)
+make -f Makefile.docker shell-rag  # RAG application container (Docker)
 ```
 
 ### Testing
@@ -129,7 +153,9 @@ The `/agents/` directory contains specialized agent configurations:
 **FastAPI**: Chosen for automatic API documentation, type validation, async support, and modern Python features over Flask
 **Streamlit**: Selected for rapid UI development, Python-native approach, and data-centric components ideal for RAG interfaces
 **ChromaDB**: Local vector database with simple API, built-in metadata support, and persistence
-**Ollama**: Container-friendly local LLM server with simple API and model management
+**Ollama**: Local LLM server with simple API and model management (runs on host, auto-detected by containers)
+**Podman**: Default container runtime for rootless, secure containerization
+**Docker**: Alternative container runtime for broader compatibility
 **SentenceTransformers**: Local embedding generation using `all-MiniLM-L6-v2` model (384 dimensions, 80MB)
 
 ## Resource Requirements
@@ -164,6 +190,8 @@ The system uses a two-phase approach:
 - No external API dependencies 
 - Data never leaves the local machine
 - Persistent storage survives container restarts
+- Smart host gateway detection for seamless Ollama connectivity
+- Lazy initialization ensures proper container environment setup
 
 ## Development Guidelines
 
@@ -172,7 +200,10 @@ The system uses a two-phase approach:
 - Implement proper error handling and logging throughout
 - Add comprehensive tests for new RAG features
 - Monitor token usage and efficiency metrics
-- Use absolute paths in Docker configurations
+- Use absolute paths in container configurations
 - Follow the project's emphasis on local-first, privacy-preserving design
+- Prefer Podman commands in examples (default), provide Docker alternatives when relevant
+- Remember that code changes require container rebuilds (`make build` then `make start`)
+- Use diagnostic scripts in `/scripts/` directory for troubleshooting
 
 The system is designed for rapid development and deployment while maintaining production-ready performance and comprehensive RAG capabilities.

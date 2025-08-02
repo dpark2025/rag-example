@@ -1,7 +1,7 @@
 import streamlit as st
 import json
 import os
-from rag_backend import rag_system, LocalLLMClient
+from rag_backend import get_rag_system, LocalLLMClient
 
 st.set_page_config(
     page_title="Local RAG System",
@@ -11,10 +11,11 @@ st.set_page_config(
 
 def check_system_health():
     """Check if all components are working"""
+    rag_sys = get_rag_system()
     health_status = {
         "embeddings": True,  # SentenceTransformers always works locally
         "vector_db": True,   # ChromaDB always works locally
-        "llm": rag_system.llm_client.health_check()
+        "llm": rag_sys.llm_client.health_check()
     }
     return health_status
 
@@ -41,7 +42,8 @@ def main():
         st.header("📚 Document Management")
         
         # Current document count
-        doc_count = rag_system.collection.count()
+        rag_sys = get_rag_system()
+        doc_count = rag_sys.collection.count()
         st.metric("Documents in KB", doc_count)
         
         # Upload documents
@@ -52,7 +54,8 @@ def main():
             
             if st.button("Add Document", type="primary"):
                 if title and content:
-                    result = rag_system.add_documents([{
+                    rag_sys = get_rag_system()
+                    result = rag_sys.add_documents([{
                         "title": title,
                         "content": content,
                         "source": source
@@ -77,7 +80,8 @@ def main():
                     })
                 
                 if documents:
-                    result = rag_system.add_documents(documents)
+                    rag_sys = get_rag_system()
+                    result = rag_sys.add_documents(documents)
                     st.success(f"Processed {len(documents)} files: {result}")
                     st.rerun()
         
@@ -87,7 +91,7 @@ def main():
                 "Similarity Threshold", 
                 min_value=0.5, 
                 max_value=0.9, 
-                value=rag_system.similarity_threshold,
+                value=get_rag_system().similarity_threshold,
                 step=0.05,
                 help="Higher = more selective retrieval"
             )
@@ -96,14 +100,15 @@ def main():
                 "Max Context Tokens",
                 min_value=500,
                 max_value=4000,
-                value=rag_system.max_context_tokens,
+                value=get_rag_system().max_context_tokens,
                 step=250,
                 help="Adjust based on your LLM's capabilities"
             )
             
             if st.button("Update Settings"):
-                rag_system.similarity_threshold = current_threshold
-                rag_system.max_context_tokens = max_context
+                rag_sys = get_rag_system()
+                rag_sys.similarity_threshold = current_threshold
+                rag_sys.max_context_tokens = max_context
                 st.success("Settings updated!")
         
         # Show efficiency metrics
@@ -137,7 +142,8 @@ def main():
                 }
             ]
             
-            result = rag_system.add_documents(sample_docs)
+            rag_sys = get_rag_system()
+            result = rag_sys.add_documents(sample_docs)
             st.success(result)
             st.rerun()
     
@@ -171,7 +177,8 @@ def main():
                 sources = []
             else:
                 with st.spinner("Searching knowledge base..."):
-                    result = rag_system.rag_query(prompt)
+                    rag_sys = get_rag_system()
+                    result = rag_sys.rag_query(prompt)
                     response = result["answer"]
                     sources = result["sources"]
                     

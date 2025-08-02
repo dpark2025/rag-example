@@ -1,29 +1,8 @@
 #!/bin/bash
 
-# Setup script for Local RAG System using Podman (Default)
+# Setup script for Local RAG System using Docker (Alternative)
 
-echo "🐳 Setting up Local RAG System with Podman (Default)..."
-
-# Check if Podman is installed
-echo "🔍 Checking Podman installation..."
-if ! command -v podman &> /dev/null; then
-    echo "❌ Podman is not installed. Please install Podman first:"
-    echo "   Visit: https://podman.io/getting-started/installation"
-    echo "   Or on macOS: brew install podman"
-    echo "   Or on Linux: see https://podman.io/getting-started/installation"
-    exit 1
-fi
-
-# Check if podman-compose is installed
-echo "🔍 Checking podman-compose installation..."
-if ! command -v podman-compose &> /dev/null; then
-    echo "❌ podman-compose is not installed. Please install it first:"
-    echo "   pip install podman-compose"
-    echo "   Or visit: https://github.com/containers/podman-compose"
-    exit 1
-fi
-
-echo "✅ Podman and podman-compose are installed"
+echo "🐳 Setting up Local RAG System with Docker (Alternative)..."
 
 # Check if Ollama is installed and running
 echo "🔍 Checking Ollama installation..."
@@ -47,13 +26,13 @@ echo "✅ Ollama is installed and running"
 # Create necessary directories
 mkdir -p data/chroma_db data/documents
 
-# Build container with Podman
-echo "📦 Building RAG application container with Podman..."
-podman-compose build
+# Build container with Docker
+echo "📦 Building RAG application container with Docker..."
+docker-compose -f docker-compose.docker.yml build
 
 # Start services
-echo "🚀 Starting RAG application with Podman..."
-podman-compose up -d
+echo "🚀 Starting RAG application with Docker..."
+docker-compose -f docker-compose.docker.yml up -d
 
 # Wait for the service to be ready
 echo "⏳ Waiting for RAG application to start..."
@@ -68,15 +47,15 @@ else
     echo "✅ Llama 3.2 (3B) model already available"
 fi
 
-echo "✅ Podman setup complete!"
+echo "✅ Docker setup complete!"
 echo ""
 echo "🌐 Access your Local RAG System at: http://localhost:8501"
 echo "🤖 Local Ollama API at: http://localhost:11434"
 echo ""
-echo "Commands:"
-echo "  podman-compose logs -f    # view logs"
-echo "  podman-compose down       # stop services"
-echo "  make health               # check health"
+echo "Docker-specific commands:"
+echo "  docker-compose -f docker-compose.docker.yml logs -f  # view logs"
+echo "  docker-compose -f docker-compose.docker.yml down     # stop services"
+echo "  make -f Makefile.docker health                       # check health"
 echo ""
 echo "To pull more models:"
 echo "  ollama pull llama3.2:8b"

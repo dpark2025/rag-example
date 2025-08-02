@@ -8,7 +8,7 @@ import asyncio
 import json
 import logging
 from typing import Any, Dict, List
-from rag_backend import rag_system
+from rag_backend import get_rag_system
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -17,7 +17,8 @@ logger = logging.getLogger(__name__)
 def simple_rag_query(question: str, max_chunks: int = 3) -> Dict:
     """Simple RAG query function for basic integration"""
     try:
-        result = rag_system.rag_query(question, max_chunks=max_chunks)
+        rag_sys = get_rag_system()
+        result = rag_sys.rag_query(question, max_chunks=max_chunks)
         return {
             "question": question,
             "answer": result["answer"],
@@ -35,7 +36,8 @@ def simple_rag_query(question: str, max_chunks: int = 3) -> Dict:
 def add_documents_simple(documents: List[Dict]) -> Dict:
     """Simple document addition function"""
     try:
-        result = rag_system.add_documents(documents)
+        rag_sys = get_rag_system()
+        result = rag_sys.add_documents(documents)
         return {
             "status": "success",
             "message": result,
@@ -48,8 +50,10 @@ def add_documents_simple(documents: List[Dict]) -> Dict:
 def get_system_status() -> Dict:
     """Get simple system status"""
     try:
-        doc_count = rag_system.collection.count()
-        llm_healthy = rag_system.llm_client.health_check()
+        rag_sys = get_rag_system()
+        doc_count = rag_sys.collection.count()
+        rag_sys = get_rag_system()
+        llm_healthy = rag_sys.llm_client.health_check()
         
         return {
             "status": "healthy" if llm_healthy else "degraded",
@@ -60,9 +64,9 @@ def get_system_status() -> Dict:
             },
             "document_count": doc_count,
             "settings": {
-                "similarity_threshold": rag_system.similarity_threshold,
-                "max_context_tokens": rag_system.max_context_tokens,
-                "chunk_size": rag_system.chunk_size
+                "similarity_threshold": get_rag_system().similarity_threshold,
+                "max_context_tokens": get_rag_system().max_context_tokens,
+                "chunk_size": get_rag_system().chunk_size
             }
         }
     except Exception as e:

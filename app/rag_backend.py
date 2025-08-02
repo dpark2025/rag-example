@@ -10,7 +10,42 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class LocalLLMClient:
-    def __init__(self, base_url="http://ollama:11434"):
+    def __init__(self, base_url=None):
+        # Auto-detect if running in container vs local
+        if base_url is None:
+            import os
+            
+            # Check for environment variable first (for container configs)
+            ollama_host = os.environ.get('OLLAMA_HOST')
+            if ollama_host:
+                base_url = f"http://{ollama_host}"
+            elif os.path.exists('/.dockerenv') or os.environ.get('container'):
+                # Running in container - try different host access methods in order
+                import socket
+                connection_attempts = [
+                    ('host.containers.internal', 11434, "http://host.containers.internal:11434"),
+                    ('10.0.2.2', 11434, "http://10.0.2.2:11434"),
+                    ('172.17.0.1', 11434, "http://172.17.0.1:11434"),  # Common Docker bridge IP
+                    ('localhost', 11434, "http://localhost:11434")
+                ]
+                
+                base_url = "http://localhost:11434"  # fallback
+                for host, port, url in connection_attempts:
+                    try:
+                        socket.create_connection((host, port), timeout=3)
+                        base_url = url
+                        logger.info(f"Successfully connected to Ollama at {host}:{port}")
+                        break
+                    except Exception as e:
+                        logger.debug(f"Failed to connect to {host}:{port} - {e}")
+                        continue
+                        
+                if base_url == "http://localhost:11434":
+                    logger.warning("Could not connect to Ollama on any known host addresses")
+            else:
+                # Running locally - use localhost
+                base_url = "http://localhost:11434"
+        
         self.base_url = base_url
         logger.info(f"Initializing LLM client with URL: {base_url}")
     
@@ -45,7 +80,8 @@ class LocalLLMClient:
         try:
             response = requests.get(f"{self.base_url}/api/tags", timeout=5)
             return response.status_code == 200
-        except:
+        except Exception as e:
+            logger.warning(f"Ollama health check failed: {e}")
             return False
 
 class LocalRAGSystem:
@@ -395,5 +431,12 @@ class LocalRAGSystem:
             "efficiency_ratio": len(docs) / max(total_context_tokens, 1) * 1000  # chunks per 1000 tokens
         }
 
-# Global instance
-rag_system = LocalRAGSystem()
+# Global instance - initialized lazily
+rag_system = None
+
+def get_rag_system():
+    """Get or create the global RAG system instance"""
+    global rag_system
+    if rag_system is None:
+        rag_system = LocalRAGSystem()
+    return rag_system
