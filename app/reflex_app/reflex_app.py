@@ -3,6 +3,7 @@
 import reflex as rx
 from .pages.index import index_page
 from .state.app_state import AppState
+from .state.chat_state import ChatState
 
 # App styling
 style = {
