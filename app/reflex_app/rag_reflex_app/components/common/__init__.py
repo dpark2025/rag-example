@@ -1,1 +1,1 @@
-# Common components
+"""Common UI components."""

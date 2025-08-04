@@ -12,10 +12,13 @@ import uvicorn
 import logging
 from datetime import datetime
 import hashlib
+import asyncio
 from rag_backend import get_rag_system
 from document_processing_tracker import processing_tracker, ProcessingStatus
 from pdf_processor import pdf_processor, ExtractionMethod
 from document_intelligence import document_intelligence, DocumentType
+from error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity, RecoveryAction, get_error_stats
+from health_monitor import health_monitor, HealthStatus
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -76,6 +79,38 @@ class DeleteResponse(BaseModel):
     message: str
     deleted_chunks: int
 
+class ErrorResponse(BaseModel):
+    error_code: str
+    user_message: str
+    recovery_action: str
+    technical_message: Optional[str] = None
+
+# Startup and shutdown events
+@app.on_event("startup")
+async def startup_event():
+    """Initialize services on startup."""
+    try:
+        # Initialize RAG system
+        rag_system = get_rag_system()
+        logger.info(f"RAG system initialized with {rag_system.collection.count()} documents")
+        
+        # Start health monitoring
+        await health_monitor.start_monitoring()
+        logger.info("Health monitoring started")
+        
+    except Exception as e:
+        logger.error(f"Startup error: {e}")
+        # Don't prevent startup, but log the error
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on shutdown."""
+    try:
+        await health_monitor.stop_monitoring()
+        logger.info("Health monitoring stopped")
+    except Exception as e:
+        logger.error(f"Shutdown error: {e}")
+
 # API Endpoints
 @app.get("/")
 async def root():
@@ -117,30 +152,82 @@ async def api_info():
         "quick_test": "curl http://localhost:8000/health"
     }
 
-@app.get("/health", response_model=HealthResponse)
+@app.get("/health")
 async def health_check():
-    """Check system health"""
+    """Check comprehensive system health with detailed monitoring."""
     try:
+        # Get comprehensive health summary
+        health_summary = health_monitor.get_health_summary()
+        
+        # Get basic RAG system info
         rag_sys = get_rag_system()
-        
-        # Check LLM
-        llm_healthy = rag_sys.llm_client.health_check()
-        
-        # Check vector database
         doc_count = rag_sys.collection.count()
         
-        return HealthResponse(
-            status="healthy" if llm_healthy else "degraded",
-            components={
-                "embedding_model": True,  # Always available locally
-                "vector_database": True,  # ChromaDB always available
-                "llm": llm_healthy
-            },
-            document_count=doc_count
-        )
+        # Map component status to boolean for backward compatibility
+        components = {}
+        for component_name, check in health_summary["checks"].items():
+            components[component_name] = check["status"] in ["healthy", "degraded"]
+        
+        # Include error statistics
+        error_stats = get_error_stats()
+        
+        return {
+            "status": health_summary["overall_status"],
+            "components": components,
+            "document_count": doc_count,
+            "health_details": health_summary,
+            "error_statistics": error_stats,
+            "monitoring": {
+                "enabled": health_monitor.is_monitoring,
+                "check_interval": health_monitor.check_interval,
+                "last_check": health_summary["last_check"]
+            }
+        }
     except Exception as e:
-        logger.error(f"Health check failed: {e}")
-        raise HTTPException(status_code=500, detail="Health check failed")
+        app_error = handle_error(e)
+        logger.error(f"Health check failed: {app_error.to_dict()}")
+        
+        # Return degraded health status instead of failing
+        return {
+            "status": "unhealthy",
+            "components": {},
+            "document_count": 0,
+            "error": app_error.to_dict(),
+            "monitoring": {"enabled": False}
+        }
+
+@app.get("/health/errors")
+async def get_error_statistics():
+    """Get detailed error statistics for monitoring."""
+    try:
+        stats = get_error_stats()
+        return {
+            "success": True,
+            "statistics": stats
+        }
+    except Exception as e:
+        app_error = handle_error(e)
+        return {
+            "success": False,
+            "error": app_error.to_dict()
+        }
+
+@app.get("/health/metrics")
+async def get_system_metrics(minutes: int = 30):
+    """Get system metrics history."""
+    try:
+        metrics = health_monitor.get_metrics_history(minutes)
+        return {
+            "success": True,
+            "metrics": metrics,
+            "period_minutes": minutes
+        }
+    except Exception as e:
+        app_error = handle_error(e)
+        return {
+            "success": False,
+            "error": app_error.to_dict()
+        }
 
 @app.post("/documents")
 async def add_documents(documents: List[Document]):
@@ -151,8 +238,15 @@ async def add_documents(documents: List[Document]):
         result = rag_sys.add_documents(doc_dicts)
         return {"message": result, "count": len(documents)}
     except Exception as e:
-        logger.error(f"Error adding documents: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        app_error = handle_error(e)
+        logger.error(f"Error adding documents: {app_error.to_dict()}")
+        
+        return ErrorResponse(
+            error_code=app_error.error_code,
+            user_message=app_error.user_message,
+            recovery_action=app_error.recovery_action.value,
+            technical_message=str(e) if logger.level <= logging.DEBUG else None
+        ).dict(), 500
 
 @app.post("/documents/upload")
 async def upload_files(files: List[UploadFile] = File(...)):
@@ -295,8 +389,9 @@ async def upload_files(files: List[UploadFile] = File(...)):
                 processed_docs.append(doc)
                 
             except Exception as e:
-                processing_tracker.fail_task(task.doc_id, str(e))
-                logger.error(f"Error processing document {doc['title']}: {e}")
+                app_error = handle_error(e)
+                processing_tracker.fail_task(task.doc_id, app_error.user_message)
+                logger.error(f"Error processing document {doc['title']}: {app_error.to_dict()}")
         
         return {
             "message": f"Successfully uploaded {len(processed_docs)} of {len(files)} files",
@@ -305,19 +400,50 @@ async def upload_files(files: List[UploadFile] = File(...)):
         }
     
     except Exception as e:
-        logger.error(f"Error uploading files: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        app_error = handle_error(e)
+        logger.error(f"Error uploading files: {app_error.to_dict()}")
+        
+        return ErrorResponse(
+            error_code=app_error.error_code,
+            user_message=app_error.user_message,
+            recovery_action=app_error.recovery_action.value,
+            technical_message=str(e) if logger.level <= logging.DEBUG else None
+        ).dict(), 500
 
 @app.post("/query", response_model=QueryResponse)
 async def query_knowledge_base(request: QueryRequest):
-    """Query the knowledge base"""
+    """Query the knowledge base with enhanced error handling."""
     try:
         rag_sys = get_rag_system()
+        
+        # Check if we have documents
+        if rag_sys.collection.count() == 0:
+            raise ApplicationError(
+                message="No documents in knowledge base",
+                category=ErrorCategory.DATABASE,
+                severity=ErrorSeverity.MEDIUM,
+                user_message="There are no documents to search. Please upload some documents first.",
+                recovery_action=RecoveryAction.NONE
+            )
+        
         result = rag_sys.rag_query(request.question, max_chunks=request.max_chunks)
         return QueryResponse(**result)
+    except ApplicationError as e:
+        app_error = e
     except Exception as e:
-        logger.error(f"Error processing query: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        app_error = handle_error(e)
+    
+    logger.error(f"Error processing query: {app_error.to_dict()}")
+    
+    # For queries, we can return a partial response with error info
+    return {
+        "answer": f"I'm sorry, I couldn't process your query. {app_error.user_message}",
+        "sources": [],
+        "context_used": 0,
+        "context_tokens": 0,
+        "efficiency_ratio": 0.0,
+        "error": app_error.to_dict()
+    }
 
 # Processing Status Endpoints
 

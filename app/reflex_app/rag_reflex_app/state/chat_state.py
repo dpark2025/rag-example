@@ -4,6 +4,7 @@ import reflex as rx
 from typing import List, Dict, Optional, Any
 from datetime import datetime
 from ..services.api_client import api_client
+from ..components.common.error_boundary import ErrorState
 
 class ChatMessage(rx.Base):
     """Chat message model."""
@@ -122,20 +123,47 @@ class ChatState(rx.State):
             self.total_messages += 2  # user + assistant
             
         except Exception as e:
-            # Handle errors
-            self.error_message = f"Failed to get response: {str(e)}"
-            self.show_error = True
-            
-            # Add error message to chat
+            # Enhanced error handling with graceful degradation
             error_time = datetime.now()
+            
+            # Check if response has error info from backend
+            if hasattr(e, 'response') and e.response:
+                try:
+                    error_data = e.response.json()
+                    if error_data.get("error"):
+                        # Use structured error from backend
+                        error_info = error_data["error"]
+                        user_message = error_info.get("user_message", str(e))
+                        recovery_action = error_info.get("recovery_action", "none")
+                        
+                        # Update error state for display
+                        await ErrorState.handle_error(error_info)
+                        
+                        error_content = f"I'm sorry, {user_message}"
+                        if recovery_action == "retry":
+                            error_content += " Please try asking again."
+                        elif recovery_action == "check_connection":
+                            error_content += " Please check your connection and try again."
+                    else:
+                        error_content = f"I encountered an unexpected error: {str(e)}"
+                except:
+                    error_content = f"I encountered an unexpected error: {str(e)}"
+            else:
+                error_content = f"I encountered an unexpected error: {str(e)}"
+            
+            # Add graceful error message to chat
             error_message = ChatMessage(
                 role="assistant",
-                content=f"I'm sorry, I encountered an error: {str(e)}",
+                content=error_content,
                 timestamp=error_time,
                 timestamp_str=error_time.strftime("%H:%M:%S"),
                 message_id=f"error_{len(self.messages)}"
             )
             self.messages.append(error_message)
+            
+            # Set error states
+            self.error_message = error_content
+            self.show_error = True
             
         finally:
             # Reset loading states
