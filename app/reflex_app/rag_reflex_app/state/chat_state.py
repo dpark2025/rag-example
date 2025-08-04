@@ -5,6 +5,8 @@ from typing import List, Dict, Optional, Any
 from datetime import datetime
 from ..services.api_client import api_client
 from ..components.common.error_boundary import ErrorState
+from ..components.common.onboarding import OnboardingState
+from ..components.common.performance_optimizer import PerformanceState
 
 class ChatMessage(rx.Base):
     """Chat message model."""
@@ -83,24 +85,46 @@ class ChatState(rx.State):
         query = self.current_input
         self.clear_input()
         
+        # Mark query made for onboarding
+        if hasattr(OnboardingState, 'mark_query_made'):
+            OnboardingState.mark_query_made()
+        
         # Set loading states
         self.is_sending = True
         self.is_typing = True
         
         try:
-            # Measure response time
-            start_time = datetime.now()
+            # Check cache first for performance optimization
+            cached_response = None
+            if hasattr(PerformanceState, 'get_cached_response'):
+                cached_response = PerformanceState.get_cached_response(query)
             
-            # Call RAG API
-            response = await api_client.query(
-                question=query,
-                max_chunks=self.max_chunks,
-                similarity_threshold=self.similarity_threshold
-            )
+            if cached_response:
+                response = cached_response
+                response_time = 0.1  # Fast cache response
+            else:
+                # Measure response time
+                start_time = datetime.now()
+                
+                # Call RAG API
+                response = await api_client.query(
+                    question=query,
+                    max_chunks=self.max_chunks,
+                    similarity_threshold=self.similarity_threshold
+                )
+                
+                end_time = datetime.now()
+                response_time = (end_time - start_time).total_seconds()
+                
+                # Cache the response for future use
+                if hasattr(PerformanceState, 'cache_response'):
+                    PerformanceState.cache_response(query, response)
             
-            end_time = datetime.now()
-            response_time = (end_time - start_time).total_seconds()
             self.last_response_time = response_time
+            
+            # Add response time to performance tracking
+            if hasattr(PerformanceState, 'add_response_time'):
+                PerformanceState.add_response_time(response_time)
             
             # Create assistant message
             assistant_message = ChatMessage(
