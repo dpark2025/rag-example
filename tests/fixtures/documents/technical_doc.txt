@@ -1,0 +1,106 @@
+Technical Documentation: RAG System Architecture
+
+System Overview
+
+The RAG (Retrieval-Augmented Generation) system implements a modern architecture using FastAPI, ChromaDB, and Ollama for local document processing and intelligent question answering.
+
+Architecture Components
+
+1. FastAPI Backend
+   - RESTful API endpoints
+   - Async request handling
+   - WebSocket support for real-time updates
+   - Comprehensive error handling
+
+2. ChromaDB Vector Database
+   - Persistent document storage
+   - Vector similarity search
+   - Metadata management
+   - Efficient indexing
+
+3. Ollama LLM Integration
+   - Local language model inference
+   - Multiple model support
+   - Auto-detection of container environments
+   - Health monitoring
+
+4. Document Processing Pipeline
+   - Text extraction and preprocessing
+   - Intelligent chunking strategies
+   - Embedding generation
+   - Metadata enrichment
+
+API Endpoints
+
+Document Management:
+- GET /api/v1/documents - List documents with filtering
+- POST /api/v1/documents/upload - Single file upload
+- POST /api/v1/documents/bulk-upload - Multiple file upload
+- DELETE /api/v1/documents/{doc_id} - Delete document
+- DELETE /api/v1/documents/bulk - Bulk delete
+
+Query Processing:
+- POST /query - Process RAG queries
+- GET /health - System health check
+- GET /settings - Configuration management
+
+Real-time Features:
+- WebSocket /api/v1/documents/ws/{client_id} - Upload progress
+- Server-sent events for status updates
+- Real-time document processing notifications
+
+Performance Optimizations
+
+1. Chunking Strategy
+   - Semantic boundary detection
+   - Configurable chunk sizes (400 tokens default)
+   - Overlap management (50 tokens default)
+
+2. Embedding Efficiency
+   - Batch processing for multiple documents
+   - Caching strategies
+   - Async embedding generation
+
+3. Query Optimization
+   - Similarity threshold filtering (0.7 default)
+   - Context token management
+   - Adaptive chunk selection
+
+Security Features
+
+1. Input Validation
+   - File type restrictions
+   - Size limits enforcement
+   - Content sanitization
+
+2. Error Handling
+   - Comprehensive error categorization
+   - User-friendly error messages
+   - Recovery action guidance
+
+3. Resource Management
+   - Memory usage monitoring
+   - Processing timeouts
+   - Rate limiting capabilities
+
+Deployment Considerations
+
+Container Support:
+- Docker and Podman compatibility
+- Auto-detection of container environments
+- Host gateway connectivity
+- Volume mounting for persistence
+
+Scalability:
+- Horizontal scaling support
+- Load balancing compatibility
+- Database clustering options
+- Caching layer integration
+
+Monitoring and Observability:
+- Health check endpoints
+- Performance metrics collection
+- Error rate monitoring
+- Resource usage tracking
+
+This technical documentation provides the foundation for understanding, deploying, and maintaining the RAG system architecture.

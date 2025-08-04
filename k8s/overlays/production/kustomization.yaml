@@ -1,0 +1,45 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: rag-system-production
+
+namespace: rag-system
+
+resources:
+- ../../base
+- monitoring.yaml
+- network-policies.yaml
+- pod-disruption-budget.yaml
+- backup-cronjob.yaml
+
+patchesStrategicMerge:
+- production-config.yaml
+- production-resources.yaml
+- production-security.yaml
+
+images:
+- name: rag-system/backend
+  newTag: v1.0.0
+- name: rag-system/reflex
+  newTag: v1.0.0
+
+replicas:
+- name: rag-chromadb
+  count: 1
+- name: rag-redis
+  count: 1
+- name: rag-rag-backend
+  count: 3
+- name: rag-reflex-frontend
+  count: 3
+- name: rag-nginx
+  count: 2
+
+commonLabels:
+  environment: production
+  team: platform
+
+commonAnnotations:
+  deployment.kubernetes.io/revision: "1"
+  contact: "devops-team@company.com"

@@ -15,3 +15,9 @@ pymupdf==1.23.14
 # System monitoring
 psutil==5.9.6
 aiohttp==3.9.1
+
+# WebSocket support
+websockets==12.0
+
+# Enhanced HTTP client
+httpx==0.25.2

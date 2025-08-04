@@ -1,0 +1,36 @@
+# Grafana Dashboard Provisioning Configuration
+apiVersion: 1
+
+providers:
+  # RAG System specific dashboards
+  - name: 'rag-system'
+    orgId: 1
+    folder: 'RAG System'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/rag-system
+
+  # Infrastructure dashboards
+  - name: 'infrastructure'
+    orgId: 1
+    folder: 'Infrastructure'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/infrastructure
+
+  # Application monitoring dashboards
+  - name: 'applications'
+    orgId: 1
+    folder: 'Applications'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/applications

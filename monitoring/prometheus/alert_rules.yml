@@ -1,0 +1,189 @@
+# Alert Rules for RAG System Production Monitoring
+groups:
+  - name: rag_system_alerts
+    rules:
+      # High-level service availability
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "Service {{ $labels.job }} on instance {{ $labels.instance }} has been down for more than 1 minute."
+
+      # RAG Backend specific alerts
+      - alert: RAGBackendHighErrorRate
+        expr: (rate(http_requests_total{job="rag-backend",code=~"5.."}[5m]) / rate(http_requests_total{job="rag-backend"}[5m])) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "RAG Backend high error rate"
+          description: "RAG Backend error rate is {{ $value | humanizePercentage }} which is above 5%"
+
+      - alert: RAGBackendHighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="rag-backend"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "RAG Backend high latency"
+          description: "RAG Backend 95th percentile latency is {{ $value }}s which is above 2s"
+
+      - alert: RAGBackendLowThroughput
+        expr: rate(http_requests_total{job="rag-backend"}[5m]) < 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "RAG Backend low throughput"
+          description: "RAG Backend is processing less than 1 request per second"
+
+      # ChromaDB alerts
+      - alert: ChromaDBConnectionFailure
+        expr: up{job="chromadb"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "ChromaDB is unreachable"
+          description: "ChromaDB service is down or unreachable"
+
+      - alert: ChromaDBHighMemoryUsage
+        expr: (container_memory_usage_bytes{name="local-rag-chromadb"} / container_spec_memory_limit_bytes{name="local-rag-chromadb"}) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ChromaDB high memory usage"
+          description: "ChromaDB memory usage is above 90%"
+
+      # System resource alerts
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is above 90% on instance {{ $labels.instance }}"
+
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is above 85% on instance {{ $labels.instance }}"
+
+      - alert: LowDiskSpace
+        expr: (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"}) < 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low disk space"
+          description: "Disk space is below 10% on {{ $labels.device }} on instance {{ $labels.instance }}"
+
+      # Container-specific alerts
+      - alert: ContainerHighMemoryUsage
+        expr: (container_memory_usage_bytes / container_spec_memory_limit_bytes) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} high memory usage"
+          description: "Container {{ $labels.name }} memory usage is above 90%"
+
+      - alert: ContainerRestartFrequency
+        expr: increase(container_restart_count[1h]) > 3
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} restarting frequently"
+          description: "Container {{ $labels.name }} has restarted {{ $value }} times in the last hour"
+
+      # Document processing alerts
+      - alert: DocumentProcessingFailures
+        expr: increase(document_processing_failures_total[10m]) > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High document processing failure rate"
+          description: "More than 5 document processing failures in the last 10 minutes"
+
+      - alert: DocumentQueueBacklog
+        expr: document_processing_queue_size > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Document processing queue backlog"
+          description: "Document processing queue has {{ $value }} items pending"
+
+      # Ollama/LLM alerts
+      - alert: OllamaModelLoadFailure
+        expr: up{job="ollama"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Ollama service is down"
+          description: "Ollama LLM service is unreachable or failed to load models"
+
+      # Health check alerts
+      - alert: HealthCheckFailure
+        expr: probe_success{job="blackbox-http"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Health check failed for {{ $labels.instance }}"
+          description: "Health check probe failed for endpoint {{ $labels.instance }}"
+
+  - name: database_alerts
+    rules:
+      # Redis alerts (if used for caching)
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis is down"
+          description: "Redis caching service is unavailable"
+
+      - alert: RedisHighMemoryUsage
+        expr: (redis_memory_used_bytes / redis_memory_max_bytes) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis high memory usage"
+          description: "Redis memory usage is above 90%"
+
+  - name: infrastructure_alerts
+    rules:
+      # Network connectivity
+      - alert: HighNetworkLatency
+        expr: increase(node_network_receive_errs_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High network error rate"
+          description: "Network errors detected on instance {{ $labels.instance }}"
+
+      # Log processing alerts
+      - alert: LogIngestionFailure
+        expr: up{job="loki"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Log ingestion service down"
+          description: "Loki log aggregation service is unavailable"

@@ -5,6 +5,9 @@ from typing import List, Dict, Optional, Any
 from datetime import datetime
 import asyncio
 import httpx
+import json
+import uuid
+from enum import Enum
 
 class DocumentInfo(rx.Base):
     """Document information model."""
@@ -17,12 +20,28 @@ class DocumentInfo(rx.Base):
     status: str = "ready"  # ready, processing, error
     error_message: str = ""
 
+class UploadStatus(str, Enum):
+    """Upload processing status."""
+    PENDING = "pending"
+    VALIDATING = "validating"
+    UPLOADING = "uploading"
+    PROCESSING = "processing"
+    INTELLIGENCE_ANALYSIS = "intelligence_analysis"
+    INDEXING = "indexing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
 class UploadProgress(rx.Base):
     """Upload progress tracking."""
+    task_id: str = ""
     filename: str = ""
     progress: float = 0.0
-    status: str = "pending"  # pending, uploading, processing, completed, error
+    status: str = "pending"
+    message: str = ""
     error_message: str = ""
+    doc_id: Optional[str] = None
+    timestamp: str = ""
 
 class DocumentState(rx.State):
     """State management for document operations."""
@@ -34,6 +53,12 @@ class DocumentState(rx.State):
     # Upload management
     upload_progress: Dict[str, UploadProgress] = {}
     is_upload_modal_open: bool = False
+    websocket_client_id: str = ""
+    websocket_connected: bool = False
+    
+    # Real-time updates
+    real_time_updates_enabled: bool = True
+    last_update_timestamp: str = ""
     
     # Selection and operations
     selected_documents: List[str] = []
@@ -57,6 +82,8 @@ class DocumentState(rx.State):
         self.show_upload_modal = not self.show_upload_modal
         if not self.show_upload_modal:
             self.upload_status = ""
+            # Generate new client ID for next session
+            self.websocket_client_id = str(uuid.uuid4())
     
     def clear_completed_uploads(self):
         """Clear completed upload progress items."""
@@ -66,12 +93,33 @@ class DocumentState(rx.State):
             if progress.status not in ["completed", "error"]
         }
     
-    async def load_documents(self):
-        """Load document list from backend."""
+    async def load_documents(self, 
+                           file_type: Optional[str] = None,
+                           status: Optional[str] = None,
+                           title_contains: Optional[str] = None,
+                           limit: Optional[int] = None,
+                           offset: Optional[int] = None):
+        """Load document list from enhanced backend API."""
         self.is_loading_documents = True
         try:
+            # Build query parameters
+            params = {}
+            if file_type:
+                params["file_type"] = file_type
+            if status:
+                params["status"] = status
+            if title_contains:
+                params["title_contains"] = title_contains
+            if limit:
+                params["limit"] = limit
+            if offset:
+                params["offset"] = offset
+            
             async with httpx.AsyncClient() as client:
-                response = await client.get("http://localhost:8000/documents")
+                response = await client.get(
+                    "http://localhost:8000/api/v1/documents",
+                    params=params
+                )
                 if response.status_code == 200:
                     docs_data = response.json()
                     self.documents = [
@@ -82,7 +130,8 @@ class DocumentState(rx.State):
                             upload_date=doc.get("upload_date", ""),
                             chunk_count=doc.get("chunk_count", 0),
                             file_size=doc.get("file_size", 0),
-                            status=doc.get("status", "ready")
+                            status=doc.get("status", "ready"),
+                            error_message=doc.get("error_message", "")
                         )
                         for doc in docs_data.get("documents", [])
                     ]
@@ -102,51 +151,121 @@ class DocumentState(rx.State):
         self.is_upload_modal_open = False
         self.upload_progress = {}
     
+    def init_websocket_client(self):
+        """Initialize WebSocket client ID for real-time updates."""
+        if not self.websocket_client_id:
+            self.websocket_client_id = str(uuid.uuid4())
+    
     async def handle_file_upload(self, files: List[rx.UploadFile]):
-        """Handle file upload process."""
+        """Handle file upload with enhanced backend API and real-time tracking."""
         if not files:
             return
         
-        for file in files:
-            filename = file.filename or "unknown"
+        # Initialize WebSocket client if needed
+        self.init_websocket_client()
+        
+        # Handle single file vs bulk upload
+        if len(files) == 1:
+            await self._handle_single_file_upload(files[0])
+        else:
+            await self._handle_bulk_file_upload(files)
+        
+        # Reload documents list after upload
+        await self.load_documents()
+    
+    async def _handle_single_file_upload(self, file: rx.UploadFile):
+        """Handle single file upload with real-time status tracking."""
+        filename = file.filename or "unknown"
+        
+        try:
+            # Read file content
+            content = await file.read()
             
-            # Initialize progress tracking
+            # Upload via enhanced API
+            async with httpx.AsyncClient(timeout=300.0) as client:
+                files_data = {
+                    "file": (filename, content, file.content_type or "text/plain")
+                }
+                response = await client.post(
+                    "http://localhost:8000/api/v1/documents/upload",
+                    files=files_data
+                )
+                
+                result = response.json()
+                
+                if response.status_code == 200 and result.get("success"):
+                    # Track via task ID for real-time updates
+                    task_id = result.get("task_id")
+                    if task_id:
+                        self.upload_progress[task_id] = UploadProgress(
+                            task_id=task_id,
+                            filename=filename,
+                            progress=100.0,
+                            status=result.get("status", "completed"),
+                            doc_id=result.get("doc_id")
+                        )
+                else:
+                    # Handle upload error
+                    self.upload_progress[filename] = UploadProgress(
+                        filename=filename,
+                        progress=0.0,
+                        status="failed",
+                        error_message=result.get("message", "Upload failed")
+                    )
+                    
+        except Exception as e:
             self.upload_progress[filename] = UploadProgress(
                 filename=filename,
                 progress=0.0,
-                status="uploading"
+                status="failed",
+                error_message=str(e)
             )
-            
-            try:
-                # Read file content
+    
+    async def _handle_bulk_file_upload(self, files: List[rx.UploadFile]):
+        """Handle bulk file upload with parallel processing."""
+        try:
+            # Prepare files for bulk upload
+            files_data = []
+            for file in files:
                 content = await file.read()
+                files_data.append(
+                    ("files", (file.filename or "unknown", content, file.content_type or "text/plain"))
+                )
+            
+            # Upload via bulk API
+            async with httpx.AsyncClient(timeout=600.0) as client:
+                response = await client.post(
+                    "http://localhost:8000/api/v1/documents/bulk-upload",
+                    files=files_data
+                )
                 
-                # Update progress
-                self.upload_progress[filename].progress = 50.0
-                self.upload_progress[filename].status = "processing"
-                
-                # Upload to backend
-                async with httpx.AsyncClient() as client:
-                    files_data = {
-                        "files": (filename, content, "text/plain")
-                    }
-                    response = await client.post(
-                        "http://localhost:8000/documents/upload",
-                        files=files_data
-                    )
+                if response.status_code == 200:
+                    result = response.json()
                     
-                    if response.status_code == 200:
-                        self.upload_progress[filename].progress = 100.0
-                        self.upload_progress[filename].status = "completed"
-                        # Reload documents list
-                        await self.load_documents()
-                    else:
-                        self.upload_progress[filename].status = "error"
-                        self.upload_progress[filename].error_message = f"Upload failed: {response.status_code}"
-                        
-            except Exception as e:
-                self.upload_progress[filename].status = "error"
-                self.upload_progress[filename].error_message = str(e)
+                    # Track bulk upload results
+                    for i, task_id in enumerate(result.get("upload_tasks", [])):
+                        filename = files[i].filename or f"file_{i}"
+                        self.upload_progress[task_id] = UploadProgress(
+                            task_id=task_id,
+                            filename=filename,
+                            progress=100.0,
+                            status="completed"
+                        )
+                    
+                    # Handle any errors
+                    for error in result.get("errors", []):
+                        filename = error.get("filename", "unknown")
+                        self.upload_progress[filename] = UploadProgress(
+                            filename=filename,
+                            progress=0.0,
+                            status="failed",
+                            error_message=error.get("error", "Upload failed")
+                        )
+                else:
+                    self.show_error_message(f"Bulk upload failed: {response.status_code}")
+                    
+        except Exception as e:
+            self.show_error_message(f"Error in bulk upload: {str(e)}")
     
     def toggle_document_selection(self, doc_id: str):
         """Toggle document selection for bulk operations."""
@@ -176,17 +295,27 @@ class DocumentState(rx.State):
             self.clear_selection()
     
     async def delete_selected_documents(self):
-        """Delete selected documents."""
+        """Delete selected documents using bulk delete API."""
         if not self.selected_documents:
             return
         
         self.is_deleting = True
         try:
             async with httpx.AsyncClient() as client:
-                for doc_id in self.selected_documents:
-                    response = await client.delete(f"http://localhost:8000/documents/{doc_id}")
-                    if response.status_code != 200:
-                        self.show_error_message(f"Failed to delete document {doc_id}")
+                # Use bulk delete API for better performance
+                response = await client.delete(
+                    "http://localhost:8000/api/v1/documents/bulk",
+                    json={"doc_ids": self.selected_documents}
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    if result.get("error_count", 0) > 0:
+                        errors = result.get("errors", [])
+                        error_msg = f"Some deletions failed: {'; '.join([e.get('error', '') for e in errors[:3]])}"
+                        self.show_error_message(error_msg)
+                else:
+                    self.show_error_message(f"Bulk delete failed: {response.status_code}")
                         
             # Clear selection and reload
             self.selected_documents = []
@@ -198,10 +327,10 @@ class DocumentState(rx.State):
             self.is_deleting = False
     
     async def delete_single_document(self, doc_id: str):
-        """Delete a single document."""
+        """Delete a single document using enhanced API."""
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.delete(f"http://localhost:8000/documents/{doc_id}")
+                response = await client.delete(f"http://localhost:8000/api/v1/documents/{doc_id}")
                 if response.status_code == 200:
                     await self.load_documents()
                 else:
@@ -276,6 +405,8 @@ class DocumentState(rx.State):
         if self.filter_type != "all":
             if self.filter_type == "txt":
                 docs = [d for d in docs if d.file_type == "txt"]
+            elif self.filter_type == "pdf":
+                docs = [d for d in docs if d.file_type == "pdf"]
             elif self.filter_type == "processing":
                 docs = [d for d in docs if d.status == "processing"]
             elif self.filter_type == "error":
@@ -314,3 +445,101 @@ class DocumentState(rx.State):
             return dt.strftime("%Y-%m-%d %H:%M")
         except:
             return date_str
+    
+    async def get_document_status(self, doc_id: str) -> Optional[Dict[str, Any]]:
+        """Get real-time document processing status."""
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(f"http://localhost:8000/api/v1/documents/{doc_id}/status")
+                if response.status_code == 200:
+                    return response.json()
+                return None
+        except Exception as e:
+            self.show_error_message(f"Error getting document status: {str(e)}")
+            return None
+    
+    async def get_storage_statistics(self) -> Optional[Dict[str, Any]]:
+        """Get comprehensive storage statistics."""
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get("http://localhost:8000/api/v1/documents/stats")
+                if response.status_code == 200:
+                    return response.json()
+                return None
+        except Exception as e:
+            self.show_error_message(f"Error getting storage stats: {str(e)}")
+            return None
+    
+    def handle_websocket_message(self, message: str):
+        """Handle incoming WebSocket progress updates."""
+        try:
+            data = json.loads(message)
+            
+            # Handle ping messages
+            if data.get("type") == "ping":
+                self.last_update_timestamp = data.get("timestamp", "")
+                return
+            
+            # Handle upload progress updates
+            task_id = data.get("task_id")
+            if task_id:
+                self.upload_progress[task_id] = UploadProgress(
+                    task_id=task_id,
+                    filename=data.get("filename", ""),
+                    progress=data.get("progress", 0.0),
+                    status=data.get("status", "unknown"),
+                    message=data.get("message", ""),
+                    error_message=data.get("error", ""),
+                    doc_id=data.get("doc_id"),
+                    timestamp=data.get("timestamp", "")
+                )
+                
+                # Auto-reload documents when upload completes
+                if data.get("status") == "completed":
+                    # Schedule document reload (non-blocking)
+                    asyncio.create_task(self.load_documents())
+                    
+        except json.JSONDecodeError as e:
+            pass  # Ignore malformed messages
+        except Exception as e:
+            self.show_error_message(f"Error processing WebSocket message: {str(e)}")
+    
+    def enable_real_time_updates(self):
+        """Enable real-time upload progress updates."""
+        self.real_time_updates_enabled = True
+        self.init_websocket_client()
+    
+    def disable_real_time_updates(self):
+        """Disable real-time upload progress updates."""
+        self.real_time_updates_enabled = False
+        self.websocket_connected = False
+    
+    async def refresh_documents(self):
+        """Refresh document list with current filters."""
+        await self.load_documents(
+            file_type=self.filter_type if self.filter_type != "all" else None,
+            title_contains=self.search_query if self.search_query else None
+        )
+    
+    @rx.var
+    def websocket_url(self) -> str:
+        """Get WebSocket URL for real-time updates."""
+        if self.websocket_client_id:
+            return f"ws://localhost:8000/api/v1/documents/ws/{self.websocket_client_id}"
+        return ""
+    
+    @rx.var
+    def upload_stats_summary(self) -> str:
+        """Get upload statistics summary."""
+        if not self.upload_progress:
+            return "No active uploads"
+        
+        total = len(self.upload_progress)
+        completed = len([p for p in self.upload_progress.values() if p.status == "completed"])
+        failed = len([p for p in self.upload_progress.values() if p.status == "failed"])
+        active = total - completed - failed
+        
+        if active > 0:
+            return f"{active} uploading, {completed} completed, {failed} failed"
+        else:
+            return f"{completed} completed, {failed} failed"

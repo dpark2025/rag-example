@@ -1,4 +1,4 @@
-.PHONY: build start stop logs shell-rag pull-model health check-ollama clean restart help build-reflex start-reflex stop-reflex start-ui logs-reflex
+.PHONY: build start stop logs shell-rag pull-model health check-ollama clean restart help build-reflex start-reflex stop-reflex start-ui logs-reflex test test-unit test-integration test-e2e test-all test-quick test-watch clean-tests coverage lint format install-test-deps
 
 # Show help information  
 help:
@@ -35,6 +35,14 @@ help:
 	@echo "  start-reflex    Start Reflex in container (experimental)"
 	@echo "  stop-reflex     Stop Reflex container"
 	@echo "  logs-reflex     View Reflex container logs"
+	@echo ""
+	@echo "🧪 Testing Commands:"
+	@echo "  test-quick      Run fast unit tests (~30s)"
+	@echo "  test-unit       Run complete unit test suite"
+	@echo "  test-integration Run API integration tests"
+	@echo "  test-all        Run complete test suite with coverage"
+	@echo "  coverage        Generate HTML coverage report"
+	@echo "  lint            Run code quality checks"
 	@echo ""
 	@echo "🛠️ Troubleshooting:"
 	@echo "  ./fix-container.sh            Fix container name conflicts"
@@ -140,3 +148,77 @@ stop-reflex:
 logs-reflex:
 	@echo "📋 Viewing Reflex logs..."
 	podman-compose -f docker-compose.reflex.yml logs -f reflex-app
+
+# ========================================
+# Testing Commands (Added by QA Engineer)
+# ========================================
+
+# Quick test cycle for development
+test-quick:
+	@echo "🏃 Running quick unit tests..."
+	pytest tests/unit/ -v --tb=short -x --disable-warnings
+
+# Unit tests
+test-unit:
+	@echo "🧪 Running unit tests..."
+	pytest tests/unit/ -v --cov=app --cov-report=term-missing
+
+# Integration tests
+test-integration:
+	@echo "🔗 Running integration tests..."
+	pytest tests/integration/ -v --tb=short
+
+# End-to-end tests (requires running services)
+test-e2e:
+	@echo "🎯 Running end-to-end tests..."
+	@echo "Note: Ensure RAG backend is running on localhost:8000"
+	pytest tests/e2e/ -v --tb=short
+
+# Complete test suite
+test-all:
+	@echo "🎪 Running complete test suite..."
+	pytest -v --cov=app --cov-report=html --cov-report=term-missing
+
+# Watch mode for development
+test-watch:
+	@echo "👀 Running tests in watch mode..."
+	pytest-watch -- tests/unit/ -v --tb=short
+
+# Coverage reporting
+coverage:
+	@echo "📊 Generating coverage report..."
+	pytest --cov=app --cov-report=html --cov-report=term-missing --cov-report=xml
+	@echo "Coverage report generated in htmlcov/index.html"
+
+# Code quality
+lint:
+	@echo "🔍 Running code linting..."
+	flake8 app/ tests/ --max-line-length=100 --ignore=E203,W503 || true
+	mypy app/ --ignore-missing-imports || true
+
+format:
+	@echo "🎨 Formatting code..."
+	black app/ tests/ --line-length=100 || true
+	isort app/ tests/ --profile black || true
+
+# Install testing dependencies
+install-test-deps:
+	@echo "📦 Installing testing dependencies..."
+	pip install -r requirements-test.txt
+
+# Clean test artifacts
+clean-tests:
+	@echo "🧹 Cleaning test artifacts..."
+	rm -rf htmlcov/
+	rm -rf .coverage
+	rm -rf coverage.xml
+	rm -rf test-results.xml
+	rm -rf .pytest_cache/
+	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	find . -type f -name "*.pyc" -delete
+
+# Test with service health check
+test-with-health:
+	@echo "🏥 Running tests with health checks..."
+	make health
+	make test-integration
