@@ -5,6 +5,7 @@ import chromadb
 from chromadb.config import Settings
 from typing import List, Dict
 import logging
+from datetime import datetime
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -85,7 +86,7 @@ class LocalLLMClient:
             return False
 
 class LocalRAGSystem:
-    def __init__(self, llm_client=None, data_path="/app/data"):
+    def __init__(self, llm_client=None, data_path="./data"):
         self.data_path = data_path
         
         # Initialize local embedding model
@@ -110,7 +111,7 @@ class LocalRAGSystem:
         
         # RAG efficiency settings
         self.max_context_tokens = 2000  # Adjust based on your LLM
-        self.similarity_threshold = 0.7  # Minimum relevance score
+        self.similarity_threshold = 0.6  # Minimum relevance score (lowered for better recall)
         self.chunk_size = 400  # Optimal chunk size for most LLMs
         self.chunk_overlap = 50  # Overlap between chunks
         
@@ -185,8 +186,42 @@ class LocalRAGSystem:
         
         return chunks
     
-    def add_documents(self, documents: List[Dict[str, str]]):
-        """Add documents with smart chunking"""
+    def _clean_metadata(self, metadata: dict) -> dict:
+        """Clean metadata to ensure ChromaDB compatibility."""
+        cleaned = {}
+        for key, value in metadata.items():
+            if value is None:
+                continue  # Skip None values
+            elif isinstance(value, (str, int, float, bool)):
+                cleaned[key] = value
+            elif isinstance(value, list):
+                # Convert lists to comma-separated strings
+                cleaned[key] = ", ".join(str(item) for item in value if item is not None)
+            else:
+                # Convert other types to strings
+                cleaned[key] = str(value)
+        return cleaned
+    
+    def custom_chunking(self, text: str, chunk_size: int, chunk_overlap: int) -> List[str]:
+        """Custom chunking with specified parameters (in tokens/words)"""
+        if not text:
+            return []
+        
+        words = text.split()
+        chunks = []
+        
+        # Ensure valid step size
+        step_size = max(1, chunk_size - chunk_overlap)
+        
+        for i in range(0, len(words), step_size):
+            chunk_words = words[i:i + chunk_size]
+            if chunk_words:  # Only add non-empty chunks
+                chunks.append(' '.join(chunk_words))
+        
+        return chunks
+    
+    def add_documents(self, documents: List[Dict[str, str]], chunk_size: int = None, chunk_overlap: int = None):
+        """Add documents with smart chunking and optional custom parameters"""
         if not documents:
             return "No documents provided"
         
@@ -196,8 +231,11 @@ class LocalRAGSystem:
             doc_id = current_count
             
             for doc in documents:
-                # Smart chunking instead of naive splitting
-                chunks = self.smart_chunking(doc['content'])
+                # Use custom chunking parameters if provided, otherwise use smart chunking
+                if chunk_size is not None and chunk_overlap is not None:
+                    chunks = self.custom_chunking(doc['content'], chunk_size, chunk_overlap)
+                else:
+                    chunks = self.smart_chunking(doc['content'])
                 
                 for i, chunk in enumerate(chunks):
                     embedding = self.encoder.encode(chunk).tolist()
@@ -206,14 +244,30 @@ class LocalRAGSystem:
                         "id": f"doc_{doc_id}_chunk_{i}",
                         "embedding": embedding,
                         "text": chunk,
-                        "metadata": {
+                        "metadata": self._clean_metadata({
                             "title": doc["title"],
                             "source": doc.get("source", "unknown"),
                             "chunk_index": i,
                             "total_chunks": len(chunks),
-                            "doc_id": doc_id,
-                            "content_preview": chunk[:150] + "..." if len(chunk) > 150 else chunk
-                        }
+                            "doc_id": str(doc_id),
+                            "content_preview": chunk[:150] + "..." if len(chunk) > 150 else chunk,
+                            "file_type": doc.get("file_type", "txt"),
+                            "upload_timestamp": doc.get("upload_timestamp", 
+                                datetime.now().isoformat()),
+                            "original_filename": doc.get("original_filename", doc["title"]),
+                            "file_size": len(doc.get("content", "")),
+                            # Document intelligence metadata
+                            "document_type": doc.get("document_type", "plain_text"),
+                            "content_structure": doc.get("content_structure", "unstructured"),
+                            "intelligence_confidence": doc.get("intelligence_confidence", 0.5),
+                            "suggested_chunk_size": doc.get("suggested_chunk_size", 400),
+                            "suggested_overlap": doc.get("suggested_overlap", 50),
+                            "processing_notes": "; ".join(doc.get("processing_notes", [])) if doc.get("processing_notes") else "",
+                            # PDF-specific metadata (if available)
+                            "extraction_method": doc.get("extraction_method"),
+                            "quality_score": doc.get("quality_score"),
+                            "page_count": doc.get("page_count")
+                        })
                     })
                 
                 doc_id += 1

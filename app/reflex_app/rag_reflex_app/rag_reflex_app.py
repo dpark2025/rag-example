@@ -64,27 +64,17 @@ app.add_page(
     on_load=AppState.on_load
 )
 
-# Placeholder pages for Phase 2+
-@rx.page(route="/documents", title="RAG System - Documents")
-def documents_page():
-    from .layouts.main_layout import main_layout
-    return main_layout(
-        rx.center(
-            rx.vstack(
-                rx.icon("file-text", size=64, color="blue.500"),
-                rx.heading("Document Management", size="3", color="gray.700"),
-                rx.text(
-                    "Phase 3: Document management will be implemented here",
-                    font_size="18px",
-                    color="gray.500",
-                    text_align="center"
-                ),
-                spacing="4",
-                align="center"
-            ),
-            height="400px"
-        )
-    )
+# Import the documents page
+from .pages.documents import documents_page
+from .state.document_state import DocumentState
+
+# Add the documents page
+app.add_page(
+    documents_page,
+    route="/documents",
+    title="RAG System - Documents",
+    on_load=DocumentState.load_documents
+)
 
 @rx.page(route="/settings", title="RAG System - Settings")
 def settings_page():
