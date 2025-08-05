@@ -214,7 +214,7 @@ class TestRAGQueryComprehensive:
         
         # Mock embedding generation with realistic dimensions
         total_chunks = len(complex_document_set) * 3  # Assume ~3 chunks per document
-        rag_system._generate_embeddings = Mock(return_value=np.random.rand(total_chunks, 384))
+        rag_system.encoder.encode = Mock(return_value=np.random.rand(total_chunks, 384).tolist())
         
         # Add documents to the system
         result = rag_system.add_documents(complex_document_set)
@@ -240,7 +240,7 @@ class TestRAGQueryComprehensive:
             }
         ]
         
-        rag_system_with_complex_docs._similarity_search = Mock(return_value=mock_search_results)
+        rag_system_with_complex_docs.adaptive_retrieval = Mock(return_value=mock_search_results)
         mock_llm_client.chat.return_value = "Artificial Intelligence is a branch of computer science focused on creating intelligent machines that can perform tasks typically requiring human intelligence, such as visual perception, speech recognition, and decision-making."
         
         result = rag_system_with_complex_docs.rag_query(query)
@@ -288,7 +288,7 @@ class TestRAGQueryComprehensive:
             }
         ]
         
-        rag_system_with_complex_docs._similarity_search = Mock(return_value=mock_search_results)
+        rag_system_with_complex_docs.adaptive_retrieval = Mock(return_value=mock_search_results)
         mock_llm_client.chat.return_value = "Machine learning and vector databases work together in RAG systems by enabling semantic search and knowledge retrieval. Vector databases store document embeddings created by ML models, allowing for similarity-based search that finds relevant information to augment language model responses."
         
         result = rag_system_with_complex_docs.rag_query(query, max_chunks=4)
@@ -308,7 +308,7 @@ class TestRAGQueryComprehensive:
         query = "What is the weather like today in Tokyo?"
         
         # Mock empty search results (no relevant content)
-        rag_system_with_complex_docs._similarity_search = Mock(return_value=[])
+        rag_system_with_complex_docs.adaptive_retrieval = Mock(return_value=[])
         
         mock_llm_client.chat.return_value = "I don't have access to current weather information. Please check a reliable weather service for up-to-date weather conditions in Tokyo."
         
@@ -339,7 +339,7 @@ class TestRAGQueryComprehensive:
         
         # Set low similarity threshold for this test
         rag_system_with_complex_docs.similarity_threshold = 0.6
-        rag_system_with_complex_docs._similarity_search = Mock(return_value=mock_search_results)
+        rag_system_with_complex_docs.adaptive_retrieval = Mock(return_value=mock_search_results)
         
         mock_llm_client.chat.return_value = "Based on the available information about AI and deep learning technologies, quantum computing is a separate field that I don't have specific information about in the current context."
         
@@ -363,7 +363,7 @@ class TestRAGQueryComprehensive:
                 "similarity": 0.9 - (i * 0.05)
             })
         
-        rag_system_with_complex_docs._similarity_search = Mock(return_value=mock_search_results)
+        rag_system_with_complex_docs.adaptive_retrieval = Mock(return_value=mock_search_results)
         
         # Set low token limit to force truncation
         rag_system_with_complex_docs.max_context_tokens = 1000
@@ -402,7 +402,7 @@ class TestRAGQueryComprehensive:
             }
         ]
         
-        rag_system_with_complex_docs._similarity_search = Mock(return_value=mock_search_results)
+        rag_system_with_complex_docs.adaptive_retrieval = Mock(return_value=mock_search_results)
         mock_llm_client.chat.return_value = "The three main types of machine learning are: 1) Supervised Learning (learning with labeled data for classification and regression), 2) Unsupervised Learning (finding patterns in unlabeled data), and 3) Reinforcement Learning (learning through interaction and rewards)."
         
         result = rag_system_with_complex_docs.rag_query(query)
@@ -427,7 +427,7 @@ class TestRAGQueryComprehensive:
             }
         ]
         
-        rag_system_with_complex_docs._similarity_search = Mock(return_value=mock_search_results)
+        rag_system_with_complex_docs.adaptive_retrieval = Mock(return_value=mock_search_results)
         
         # Mock LLM with slight delay to test timing
         def delayed_chat(*args, **kwargs):
@@ -457,7 +457,7 @@ class TestRAGQueryComprehensive:
         ]
         
         # Mock search results for each query
-        def mock_similarity_search(query, max_results=5):
+        def mock_adaptive_retrieval(query, max_chunks=5):
             if "artificial intelligence" in query.lower():
                 return [{
                     "content": "AI is a branch of computer science",
@@ -477,7 +477,7 @@ class TestRAGQueryComprehensive:
                     "similarity": 0.8
                 }]
         
-        rag_system_with_complex_docs._similarity_search = mock_similarity_search
+        rag_system_with_complex_docs.adaptive_retrieval = mock_adaptive_retrieval
         mock_llm_client.chat.return_value = "This is a response to your query."
         
         # Execute queries concurrently
@@ -751,9 +751,9 @@ class TestRAGSystemReliability:
             call_count += 1
             if call_count <= 2:
                 raise Exception("Embedding service temporarily unavailable")
-            return np.random.rand(len(texts), 384)
+            return np.random.rand(len(texts), 384).tolist()
         
-        rag_system._generate_embeddings = mock_generate_embeddings
+        rag_system.encoder.encode = mock_generate_embeddings
         rag_system.collection = Mock()
         rag_system.collection.add = Mock()
         rag_system.collection.count = Mock(return_value=1)
@@ -780,9 +780,9 @@ class TestRAGSystemReliability:
         
         # Mock embedding generation that handles empty content
         def mock_generate_embeddings(texts):
-            return np.random.rand(len([t for t in texts if t.strip()]), 384)
+            return np.random.rand(len([t for t in texts if t.strip()]), 384).tolist()
         
-        rag_system._generate_embeddings = mock_generate_embeddings
+        rag_system.encoder.encode = mock_generate_embeddings
         
         # Should handle partial failures gracefully
         result = rag_system.add_documents(documents)
@@ -806,7 +806,7 @@ class TestRAGSystemReliability:
         }]
         
         rag_system_with_complex_docs.collection.count = Mock(return_value=7)  # Updated count
-        rag_system_with_complex_docs._generate_embeddings = Mock(return_value=np.random.rand(1, 384))
+        rag_system_with_complex_docs.encoder.encode = Mock(return_value=np.random.rand(1, 384).tolist())
         rag_system_with_complex_docs.add_documents(new_docs)
         
         # Query 2 - should work with updated state

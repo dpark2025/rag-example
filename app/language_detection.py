@@ -8,7 +8,7 @@ Provides automatic language identification for documents and queries
 
 import logging
 import re
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, Any
 from dataclasses import dataclass
 from collections import Counter
 import unicodedata

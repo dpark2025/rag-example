@@ -164,7 +164,7 @@ class TestCriticalUserJourneys:
         
         # Mock embedding generation
         total_chunks = len(baseline_documents) * 3
-        rag_system._generate_embeddings = Mock(return_value=np.random.rand(total_chunks, 384))
+        rag_system.encoder.encode = Mock(return_value=np.random.rand(total_chunks, 384).tolist())
         
         # Test document addition
         start_time = time.time()
@@ -180,7 +180,7 @@ class TestCriticalUserJourneys:
         assert processing_time < expected_max_time, f"Document processing time regression: {processing_time:.2f}s > {expected_max_time}s"
         
         # Verify mocked operations were called correctly
-        assert rag_system._generate_embeddings.called, "Embedding generation should be called"
+        assert rag_system.encoder.encode.called, "Embedding generation should be called"
         assert rag_system.collection.add.called, "Document storage should be called"
         
         throughput = len(baseline_documents) / processing_time
@@ -216,7 +216,7 @@ class TestCriticalUserJourneys:
             
             # Mock similarity search based on query
             mock_search_results = self._generate_mock_search_results(query, baseline_documents, expected_topics)
-            rag_system._similarity_search = Mock(return_value=mock_search_results)
+            rag_system.adaptive_retrieval = Mock(return_value=mock_search_results)
             
             start_time = time.time()
             result = rag_system.rag_query(query)
@@ -391,7 +391,7 @@ class TestSystemReliabilityRegression:
             rag_system.collection = Mock()
             rag_system.collection.add = Mock()
             rag_system.collection.count = Mock(return_value=(batch + 1) * 20)
-            rag_system._generate_embeddings = Mock(return_value=np.random.rand(20 * 2, 384))
+            rag_system.encoder.encode = Mock(return_value=np.random.rand(20 * 2, 384).tolist())
             
             result = rag_system.add_documents(documents)
             assert "Successfully added" in result, f"Batch {batch} processing should succeed"
@@ -423,7 +423,7 @@ class TestSystemReliabilityRegression:
         rag_system.collection = Mock()
         rag_system.collection.add = Mock()
         rag_system.collection.count = Mock(return_value=len(baseline_documents) * 3)
-        rag_system._generate_embeddings = Mock(return_value=np.random.rand(len(baseline_documents) * 3, 384))
+        rag_system.encoder.encode = Mock(return_value=np.random.rand(len(baseline_documents) * 3, 384).tolist())
         
         start_time = time.time()
         result = rag_system.add_documents(baseline_documents)
@@ -433,7 +433,7 @@ class TestSystemReliabilityRegression:
         assert upload_throughput >= performance_baselines["document_upload_throughput"], f"Upload throughput regression: {upload_throughput:.1f} < {performance_baselines['document_upload_throughput']}"
         
         # Test query performance
-        rag_system._similarity_search = Mock(return_value=[
+        rag_system.adaptive_retrieval = Mock(return_value=[
             {
                 "content": "AI is the simulation of human intelligence in machines.",
                 "metadata": {"title": "AI Fundamentals", "source": "test"},
@@ -460,7 +460,7 @@ class TestSystemReliabilityRegression:
         # Setup system
         rag_system.collection = Mock()
         rag_system.collection.count = Mock(return_value=10)
-        rag_system._similarity_search = Mock(return_value=[
+        rag_system.adaptive_retrieval = Mock(return_value=[
             {
                 "content": "Test content for concurrent operations",
                 "metadata": {"title": "Test Doc", "source": "test"},
@@ -699,7 +699,7 @@ class TestBackwardCompatibilityRegression:
             else:
                 # Mock appropriate responses
                 if expected_behavior == "simple_factual_response":
-                    rag_system._similarity_search = Mock(return_value=[
+                    rag_system.adaptive_retrieval = Mock(return_value=[
                         {
                             "content": "AI is artificial intelligence",
                             "metadata": {"title": "AI Basics", "source": "test"},
@@ -709,7 +709,7 @@ class TestBackwardCompatibilityRegression:
                     mock_llm_client.chat.return_value = "AI stands for Artificial Intelligence."
                 
                 elif expected_behavior == "detailed_explanation":
-                    rag_system._similarity_search = Mock(return_value=[
+                    rag_system.adaptive_retrieval = Mock(return_value=[
                         {
                             "content": "Machine learning includes supervised, unsupervised, and reinforcement learning",
                             "metadata": {"title": "ML Guide", "source": "test"},
@@ -719,7 +719,7 @@ class TestBackwardCompatibilityRegression:
                     mock_llm_client.chat.return_value = "Machine learning algorithms can be categorized into three main types: supervised learning, unsupervised learning, and reinforcement learning."
                 
                 elif expected_behavior == "handles_long_query":
-                    rag_system._similarity_search = Mock(return_value=[
+                    rag_system.adaptive_retrieval = Mock(return_value=[
                         {
                             "content": "Handling long queries requires careful processing",
                             "metadata": {"title": "Query Processing", "source": "test"},
@@ -808,9 +808,8 @@ class TestIntegrationRegression:
         
         file_obj = BytesIO(test_content.encode())
         upload_file = UploadFile(
-            filename="regression_test.txt",
             file=file_obj,
-            content_type="text/plain",
+            filename="regression_test.txt",
             size=len(test_content)
         )
         
@@ -826,7 +825,7 @@ class TestIntegrationRegression:
         # Step 2: Setup RAG system with uploaded document
         rag_system.collection = Mock()
         rag_system.collection.count = Mock(return_value=3)  # Mock 3 chunks
-        rag_system._similarity_search = Mock(return_value=[
+        rag_system.adaptive_retrieval = Mock(return_value=[
             {
                 "content": "Regression testing is a type of software testing that ensures previously developed software still works correctly.",
                 "metadata": {"title": "Regression Testing in Software Development", "source": "regression_test.txt"},
@@ -880,7 +879,7 @@ class TestIntegrationRegression:
         # Test RAG system integration
         rag_system.collection = Mock()
         rag_system.collection.count = Mock(return_value=2)
-        rag_system._generate_embeddings = Mock(return_value=np.random.rand(2, 384))
+        rag_system.encoder.encode = Mock(return_value=np.random.rand(2, 384).tolist())
         rag_system.collection.add = Mock()
         
         # Simulate adding document to RAG system
@@ -909,9 +908,8 @@ class TestIntegrationRegression:
         from io import BytesIO
         
         error_file = UploadFile(
-            filename="error_test.txt",
             file=BytesIO(b"Error test content"),
-            content_type="text/plain",
+            filename="error_test.txt",
             size=18
         )
         

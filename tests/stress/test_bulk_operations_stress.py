@@ -34,6 +34,33 @@ from performance_cache import PerformanceCache
 from connection_pool import ConnectionPoolManager
 
 
+# Global fixtures for stress testing
+@pytest.fixture
+def bulk_document_generator():
+    """Generate bulk documents for testing."""
+    def _generate_documents(count: int, size_kb: int = 10) -> List[Dict[str, Any]]:
+        documents = []
+        content_template = "This is test document content. " * (size_kb * 40)  # Approximate KB
+        
+        for i in range(count):
+            documents.append({
+                "title": f"Bulk Test Document {i+1}",
+                "content": f"{content_template} Document ID: {i+1}. Unique content for document number {i+1}.",
+                "source": f"bulk_test_{i+1}",
+                "doc_id": f"bulk_doc_{i+1:06d}",
+                "file_type": "txt",
+                "metadata": {
+                    "batch_id": "stress_test_batch",
+                    "created_at": time.time(),
+                    "size_kb": size_kb
+                }
+            })
+        
+        return documents
+    
+    return _generate_documents
+
+
 @pytest.mark.stress
 class TestBulkDocumentOperations:
     """Stress tests for bulk document operations."""
@@ -133,31 +160,6 @@ class TestBulkDocumentOperations:
         
         return MemoryMonitor()
 
-    @pytest.fixture
-    def bulk_document_generator(self):
-        """Generate bulk documents for testing."""
-        def _generate_documents(count: int, size_kb: int = 10) -> List[Dict[str, Any]]:
-            documents = []
-            content_template = "This is test document content. " * (size_kb * 40)  # Approximate KB
-            
-            for i in range(count):
-                documents.append({
-                    "title": f"Bulk Test Document {i+1}",
-                    "content": f"{content_template} Document ID: {i+1}. Unique content for document number {i+1}.",
-                    "source": f"bulk_test_{i+1}",
-                    "doc_id": f"bulk_doc_{i+1:06d}",
-                    "file_type": "txt",
-                    "metadata": {
-                        "batch_id": "stress_test_batch",
-                        "created_at": time.time(),
-                        "size_kb": size_kb
-                    }
-                })
-            
-            return documents
-        
-        return _generate_documents
-
     @pytest.mark.slow
     def test_bulk_document_addition_stress(self, rag_system, bulk_document_generator, memory_monitor):
         """Test bulk document addition under stress."""
@@ -183,9 +185,9 @@ class TestBulkDocumentOperations:
                 # Mock embedding generation with realistic delay
                 def mock_generate_embeddings(texts):
                     time.sleep(0.001 * len(texts))  # 1ms per text
-                    return np.random.rand(len(texts), 384)
+                    return np.random.rand(len(texts), 384).tolist()
                 
-                rag_system._generate_embeddings = mock_generate_embeddings
+                rag_system.encoder.encode = mock_generate_embeddings
                 
                 # Process documents
                 start_time = time.time()
@@ -329,7 +331,7 @@ class TestBulkDocumentOperations:
                 rag_system.collection = Mock()
                 rag_system.collection.add = Mock()
                 rag_system.collection.count = Mock(return_value=cycle * documents_per_cycle)
-                rag_system._generate_embeddings = Mock(return_value=np.random.rand(documents_per_cycle * 2, 384))
+                rag_system.encoder.encode = Mock(return_value=np.random.rand(documents_per_cycle * 2, 384).tolist())
                 
                 # Process documents
                 result = rag_system.add_documents(documents)
@@ -337,7 +339,7 @@ class TestBulkDocumentOperations:
                 # Simulate query operations
                 for _ in range(5):
                     # Mock similarity search
-                    rag_system._similarity_search = Mock(return_value=[
+                    rag_system.adaptive_retrieval = Mock(return_value=[
                         {
                             "content": f"Test content {cycle}",
                             "metadata": {"title": f"Doc {cycle}", "source": "test"},
@@ -463,8 +465,88 @@ class TestBulkDocumentOperations:
         assert not leak_analysis.get('potential_leak', False), "False positive leak detection"
         
         # Test with simulated leak
-        memory_monitor = self.memory_monitor()  # Fresh monitor
-        memory_monitor.start_monitoring(interval=0.1)
+        # Create a fresh memory monitor instance
+        class MemoryMonitor:
+            def __init__(self):
+                self.process = psutil.Process()
+                self.measurements = []
+                self.baseline_memory = None
+                self.monitoring = False
+                self.monitor_thread = None
+                self.lock = threading.Lock()
+            
+            def start_monitoring(self, interval=0.5):
+                """Start memory monitoring."""
+                with self.lock:
+                    if self.monitoring:
+                        return
+                    
+                    self.monitoring = True
+                    self.baseline_memory = self.process.memory_info().rss / 1024 / 1024  # MB
+                    self.measurements = []
+                    
+                    def monitor():
+                        while self.monitoring:
+                            try:
+                                memory_mb = self.process.memory_info().rss / 1024 / 1024
+                                self.measurements.append({
+                                    'timestamp': time.time(),
+                                    'memory_mb': memory_mb,
+                                    'memory_growth_mb': memory_mb - self.baseline_memory
+                                })
+                                time.sleep(interval)
+                            except Exception:
+                                break
+                    
+                    self.monitor_thread = threading.Thread(target=monitor, daemon=True)
+                    self.monitor_thread.start()
+            
+            def stop_monitoring(self):
+                """Stop memory monitoring."""
+                with self.lock:
+                    self.monitoring = False
+                    if self.monitor_thread:
+                        self.monitor_thread.join(timeout=1.0)
+            
+            def get_memory_stats(self):
+                """Get memory usage statistics."""
+                if not self.measurements:
+                    return {}
+                
+                growth_values = [m['memory_growth_mb'] for m in self.measurements]
+                return {
+                    'baseline_mb': self.baseline_memory,
+                    'current_mb': self.measurements[-1]['memory_mb'],
+                    'memory_growth_mb': self.measurements[-1]['memory_growth_mb'],
+                    'max_growth_mb': max(growth_values),
+                    'avg_growth_mb': statistics.mean(growth_values),
+                    'total_measurements': len(self.measurements)
+                }
+            
+            def detect_memory_leak(self, threshold_mb=50):
+                """Detect potential memory leaks."""
+                if len(self.measurements) < 5:
+                    return {'potential_leak': False, 'reason': 'insufficient_data'}
+                
+                growth_values = [m['memory_growth_mb'] for m in self.measurements[-10:]]
+                
+                # Check for consistent growth
+                if len(growth_values) >= 3:
+                    trend = statistics.linear_regression(range(len(growth_values)), growth_values)
+                    slope = trend.slope
+                    
+                    if slope > 1.0 and max(growth_values) > threshold_mb:
+                        return {
+                            'potential_leak': True,
+                            'growth_rate_mb_per_measurement': slope,
+                            'max_growth_mb': max(growth_values),
+                            'reason': 'consistent_growth_pattern'
+                        }
+                
+                return {'potential_leak': False, 'max_growth_mb': max(growth_values)}
+        
+        fresh_memory_monitor = MemoryMonitor()
+        fresh_memory_monitor.start_monitoring(interval=0.1)
         
         # Simulate memory leak
         leaked_data = []
@@ -472,9 +554,9 @@ class TestBulkDocumentOperations:
             leaked_data.append([0] * 10000)  # Accumulating allocations
             time.sleep(0.1)
         
-        memory_monitor.stop_monitoring()
+        fresh_memory_monitor.stop_monitoring()
         
-        leak_analysis = memory_monitor.detect_memory_leak(threshold_mb=5)
+        leak_analysis = fresh_memory_monitor.detect_memory_leak(threshold_mb=5)
         
         # Should detect the simulated leak
         print(f"Simulated leak analysis: {leak_analysis}")
@@ -510,7 +592,7 @@ class TestResourceExhaustionScenarios:
                 rag_system.collection = Mock()
                 rag_system.collection.add = Mock()
                 rag_system.collection.count = Mock(return_value=i * 10)
-                rag_system._generate_embeddings = Mock(return_value=np.random.rand(i * 10, 384))
+                rag_system.encoder.encode = Mock(return_value=np.random.rand(i * 10, 384).tolist())
                 
                 # Process documents
                 batch = large_documents[i*10:(i+1)*10]
@@ -581,7 +663,7 @@ class TestResourceExhaustionScenarios:
                 sum(range(100))
             return np.random.rand(len(texts), 384)
         
-        rag_system._generate_embeddings = cpu_intensive_embeddings
+        rag_system.encoder.encode = cpu_intensive_embeddings
         rag_system.collection = Mock()
         rag_system.collection.add = Mock()
         rag_system.collection.count = Mock(return_value=len(complex_documents) * 3)
@@ -890,7 +972,7 @@ class TestSystemRecoveryAndResilience:
                         sum(range(10))
                     return np.random.rand(len(texts), 384)
                 
-                rag_system._generate_embeddings = mock_complex_embeddings
+                rag_system.encoder.encode = mock_complex_embeddings
                 rag_system.collection = Mock()
                 rag_system.collection.add = Mock()
                 rag_system.collection.count = Mock(return_value=level["batch_size"])
@@ -990,7 +1072,7 @@ class TestSystemRecoveryAndResilience:
         
         mock_unreliable_embeddings.retry_attempts = set()
         
-        rag_system._generate_embeddings = mock_unreliable_embeddings
+        rag_system.encoder.encode = mock_unreliable_embeddings
         rag_system.collection = Mock()
         rag_system.collection.add = Mock()
         

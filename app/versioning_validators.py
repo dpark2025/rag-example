@@ -16,17 +16,12 @@ from typing import List, Dict, Optional, Tuple, Any
 from dataclasses import dataclass
 from enum import Enum
 
-from document_versioning import DocumentVersion, VersionOperation, ConflictResolution, VersionStatus
+from versioning_types import DocumentVersion, VersionOperation, ConflictResolution, VersionStatus, ValidationResult
 from error_handlers import ApplicationError, ErrorCategory, ErrorSeverity, RecoveryAction
 
 logger = logging.getLogger(__name__)
 
-class ValidationResult(Enum):
-    """Validation result types."""
-    VALID = "valid"
-    WARNING = "warning"
-    ERROR = "error"
-    CRITICAL = "critical"
+# ValidationResult imported from versioning_types
 
 @dataclass
 class ValidationError:

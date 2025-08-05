@@ -75,7 +75,7 @@ This guide provides comprehensive instructions for integrating and using the mul
 
 ```bash
 # Navigate to the app directory
-cd app
+cd ../../app
 
 # Install new multilingual dependencies
 pip install -r requirements.txt
@@ -104,10 +104,10 @@ i18n.create_language_pack("ru")  # Russian
 
 ```bash
 # Run multilingual tests
-python test_multilingual_support.py
+python tests/unit/test_multilingual_support.py
 
 # Or use pytest
-pytest test_multilingual_support.py -v
+pytest tests/unit/test_multilingual_support.py -v
 ```
 
 ## Integration with Existing RAG System
@@ -605,14 +605,14 @@ logging.getLogger("app.multilingual_rag").setLevel(logging.DEBUG)
 
 ```bash
 # Run all multilingual tests
-python test_multilingual_support.py
+python tests/unit/test_multilingual_support.py
 
 # Run specific test classes
-pytest test_multilingual_support.py::TestI18nManager -v
-pytest test_multilingual_support.py::TestLanguageDetection -v
-pytest test_multilingual_support.py::TestTranslationService -v
-pytest test_multilingual_support.py::TestMultilingualRAG -v
-pytest test_multilingual_support.py::TestMultilingualUI -v
+pytest tests/unit/test_multilingual_support.py::TestI18nManager -v
+pytest tests/unit/test_multilingual_support.py::TestLanguageDetection -v
+pytest tests/unit/test_multilingual_support.py::TestTranslationService -v
+pytest tests/unit/test_multilingual_support.py::TestMultilingualRAG -v
+pytest tests/unit/test_multilingual_support.py::TestMultilingualUI -v
 ```
 
 ### Test Coverage

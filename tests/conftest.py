@@ -90,15 +90,15 @@ def rag_system(clean_chromadb, temp_directory, mock_llm_client):
 
 
 @pytest.fixture
-def document_manager(rag_system):
+def document_manager():
     """Provide document manager instance."""
-    return DocumentManager(rag_system)
+    return DocumentManager()
 
 
 @pytest.fixture
-def upload_handler(document_manager):
+def upload_handler():
     """Provide upload handler instance."""
-    return UploadHandler(document_manager)
+    return UploadHandler()
 
 
 # Test Data Fixtures
@@ -169,9 +169,8 @@ def sample_upload_file():
     file_obj = BytesIO(content)
     
     upload_file = UploadFile(
-        filename="sample.txt",
         file=file_obj,
-        content_type="text/plain",
+        filename="sample.txt",
         size=len(content)
     )
     return upload_file
@@ -188,9 +187,8 @@ def large_upload_file():
     file_obj = BytesIO(content)
     
     upload_file = UploadFile(
-        filename="large_file.txt",
         file=file_obj,
-        content_type="text/plain",
+        filename="large_file.txt",
         size=len(content)
     )
     return upload_file

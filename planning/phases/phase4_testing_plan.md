@@ -52,7 +52,7 @@ reflex run
 - Document appears in document list with `file_type: "pdf"`
 - Metadata includes PDF-specific fields (page_count, extraction_method, quality_score)
 
-**Test Script**: Use `scripts/test_pdf_processing.py`
+**Test Script**: Use `tests/unit/test_pdf_processing.py`
 
 #### 1.2 PDF Text Extraction
 **Objective**: Verify text is correctly extracted from PDFs

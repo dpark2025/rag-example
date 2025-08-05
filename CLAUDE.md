@@ -86,13 +86,13 @@ cd app/reflex_app && reflex run  # Frontend
 ```bash
 # Run comprehensive tests
 pytest tests/  # Full test suite
-python -m pytest tests/test_document_management.py  # Document tests
-python -m pytest tests/test_pdf_processing.py  # PDF tests
+python -m pytest tests/unit/test_document_management.py  # Document tests
+python -m pytest tests/unit/test_pdf_processing.py  # PDF tests
 
 # Development testing
-python scripts/test_full_system.py  # End-to-end tests
-python scripts/test_upload_workflow.py  # Upload workflow
-python scripts/test_monitoring.py  # Health monitoring
+python tests/comprehensive_test.py  # End-to-end tests
+python scripts/test_processing_status.py  # Processing workflow
+python scripts/run_comprehensive_tests.py  # Full test suite
 
 # Access all interfaces
 # - Main UI: http://localhost:3000

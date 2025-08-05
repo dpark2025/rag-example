@@ -316,6 +316,24 @@ playground/
 # Issues and troubleshooting (from CODEPROJECTS.md)
 issues/
 
+# Test output files and reports
+test-report-*.html
+test-results-*.xml
+test-*.json
+comprehensive_test_report.json
+*-test-report.*
+*-test-results.*
+
+# Test temporary files
+test_document.txt
+test_*.txt
+test_output/
+test_artifacts/
+
+# Script output files
+analyze_*.json
+fix_*.log
+
 # Local MCP server data
 .mcp/
 mcp-data/

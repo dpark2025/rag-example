@@ -172,9 +172,8 @@ class TestLoadScenarios:
             
             file_obj = BytesIO(content_bytes)
             return UploadFile(
-                filename=f"load_test_{file_id}.txt",
                 file=file_obj,
-                content_type="text/plain",
+                filename=f"load_test_{file_id}.txt",
                 size=len(content_bytes)
             )
         
@@ -255,7 +254,7 @@ class TestLoadScenarios:
             rag_system.collection = Mock()
             rag_system.collection.add = Mock()
             rag_system.collection.count = Mock(return_value=20 * (cycle + 1))
-            rag_system._generate_embeddings = Mock(return_value=np.random.rand(20, 384))
+            rag_system.encoder.encode = Mock(return_value=np.random.rand(20, 384).tolist())
             
             start_time = time.time()
             result = rag_system.add_documents(documents)
@@ -307,9 +306,9 @@ class TestLoadScenarios:
         def mock_generate_embeddings(texts):
             # Simulate CPU-intensive embedding generation
             time.sleep(0.1 * len(texts))  # 100ms per text
-            return np.random.rand(len(texts), 384)
+            return np.random.rand(len(texts), 384).tolist()
         
-        rag_system._generate_embeddings = mock_generate_embeddings
+        rag_system.encoder.encode = mock_generate_embeddings
         rag_system.collection = Mock()
         rag_system.collection.add = Mock()
         rag_system.collection.count = Mock(return_value=len(large_documents) * 3)
@@ -368,9 +367,8 @@ class TestLoadScenarios:
             content_bytes = content.encode()
             file_obj = BytesIO(content_bytes)
             return UploadFile(
-                filename=filename,
                 file=file_obj,
-                content_type="text/plain",
+                filename=filename,
                 size=len(content_bytes)
             )
         
@@ -421,7 +419,7 @@ class TestLoadScenarios:
             rag_system.collection = Mock()
             rag_system.collection.add = Mock()
             rag_system.collection.count = Mock(return_value=1)
-            rag_system._generate_embeddings = Mock(return_value=np.random.rand(1, 384))
+            rag_system.encoder.encode = Mock(return_value=np.random.rand(1, 384).tolist())
             
             start_time = time.time()
             try:
@@ -521,7 +519,7 @@ class TestStressScenarios:
                 })
                 
                 # Perform a query operation
-                result = rag_system._similarity_search("test query")
+                result = rag_system.adaptive_retrieval("test query")
                 
                 duration = time.time() - start_time
                 connection_times.append(duration)
@@ -572,7 +570,7 @@ class TestStressScenarios:
                 rag_system.collection.count = Mock(return_value=len(batch) * 3)
                 
                 # Simulate memory-intensive embedding generation
-                rag_system._generate_embeddings = Mock(return_value=np.random.rand(len(batch) * 3, 384))
+                rag_system.encoder.encode = Mock(return_value=np.random.rand(len(batch) * 3, 384).tolist())
                 
                 result = rag_system.add_documents(batch)
                 

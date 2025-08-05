@@ -33,32 +33,21 @@ from rag_backend import get_rag_system
 from document_manager import get_document_manager, DocumentMetadata
 from error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity, RecoveryAction
 from performance_cache import get_document_cache
-from versioning_validators import get_version_validator, ValidationResult
+from versioning_types import (
+    DocumentVersion, VersionStatus, VersionOperation, ConflictResolution,
+    VersionDiff, RollbackSafetyCheck, VersionConflict, ValidationResult,
+    VersionQuery, BulkVersionOperation
+)
+from versioning_validators import get_version_validator
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-class VersionOperation(Enum):
-    """Version operation types for audit trail."""
-    CREATE = "create"
-    UPDATE = "update"
-    ROLLBACK = "rollback"
-    MERGE = "merge"
-    DELETE = "delete"
+# VersionOperation imported from versioning_types
 
-class ConflictResolution(Enum):
-    """Conflict resolution strategies."""
-    ABORT = "abort"
-    AUTO_MERGE = "auto_merge"
-    MANUAL = "manual"
-    FORCE_OVERWRITE = "force_overwrite"
+# ConflictResolution imported from versioning_types
 
-class VersionStatus(Enum):
-    """Version status types."""
-    ACTIVE = "active"
-    ARCHIVED = "archived"
-    DELETED = "deleted"
-    DRAFT = "draft"
+# VersionStatus imported from versioning_types
 
 @dataclass
 class DocumentVersion:
@@ -194,7 +183,7 @@ class DocumentVersioning:
         """Initialize ChromaDB collection for version storage."""
         try:
             # Create or get versions collection
-            self.version_collection = self.rag_system.client.get_or_create_collection(
+            self.version_collection = self.rag_system.chroma_client.get_or_create_collection(
                 name=self.version_collection_name,
                 metadata={"hnsw:space": "cosine"}
             )

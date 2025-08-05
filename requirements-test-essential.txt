@@ -1,0 +1,40 @@
+# Essential Testing Dependencies for RAG System
+# This file contains only the core testing dependencies that are actually used
+
+# Core testing framework
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+pytest-mock>=3.11.0
+pytest-benchmark>=4.0.0
+
+# HTTP testing
+httpx>=0.25.0
+requests-mock>=1.11.0
+
+# Test data and fixtures  
+factory-boy>=3.3.0
+faker>=19.0.0
+
+# Performance monitoring
+memory-profiler>=0.61.0
+psutil>=5.9.0
+
+# Development tools (essential only)
+black>=23.0.0
+isort>=5.12.0
+
+# File handling for tests
+aiofiles>=23.0.0
+
+# Mock services
+responses>=0.23.0
+
+# Reporting (essential)
+pytest-html>=4.0.0
+pytest-timeout>=2.1.0
+
+# Frontend testing (if needed - comment out if not using)
+# selenium>=4.15.0
+# playwright>=1.40.0
+# pytest-playwright>=0.4.0

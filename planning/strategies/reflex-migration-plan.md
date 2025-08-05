@@ -1451,7 +1451,7 @@ class TestDocumentRemoval:
 
 ### Performance Testing
 ```python
-# tests/performance/test_pdf_processing.py
+# tests/unit/test_pdf_processing.py
 import time
 import pytest
 from app.pdf_processor import PDFProcessor

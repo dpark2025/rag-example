@@ -38,9 +38,8 @@ class TestFileUploadEdgeCases:
         def _create_file(filename: str, content: bytes, content_type: str = "text/plain"):
             file_obj = BytesIO(content)
             return UploadFile(
-                filename=filename,
                 file=file_obj,
-                content_type=content_type,
+                filename=filename,
                 size=len(content)
             )
         return _create_file
@@ -368,9 +367,8 @@ class TestFileUploadEdgeCases:
         
         file_obj = BytesIO(pdf_content)
         mistyped_file = UploadFile(
-            filename="fake.txt",
             file=file_obj,
-            content_type="text/plain",  # Wrong content type!
+            filename="fake.txt",
             size=len(pdf_content)
         )
         
@@ -423,7 +421,7 @@ class TestFileUploadIntegrationEdgeCases:
         large_file = create_large_file(10)
         
         # Use real document manager but mock heavy operations
-        with patch.object(upload_handler.document_manager.rag_system, '_generate_embeddings') as mock_embed:
+        with patch.object(upload_handler.document_manager.rag_system.encoder, 'encode') as mock_embed:
             mock_embed.return_value = [[0.1] * 384] * 20  # Mock embeddings
             
             with patch.object(upload_handler.document_manager.rag_system.collection, 'add') as mock_add:

@@ -28,11 +28,13 @@ from error_handlers import ApplicationError, ErrorCategory, ErrorSeverity
 class TestDocumentManager:
     """Test suite for DocumentManager functionality."""
 
-    def test_init(self, rag_system):
+    def test_init(self):
         """Test DocumentManager initialization."""
-        manager = DocumentManager(rag_system)
-        assert manager.rag_system is rag_system
+        manager = DocumentManager()
+        assert manager.rag_system is not None
         assert manager is not None
+        assert hasattr(manager, '_lock')
+        assert hasattr(manager, '_executor')
 
     @pytest.mark.asyncio
     async def test_list_documents_empty(self, document_manager):

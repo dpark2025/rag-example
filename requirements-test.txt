@@ -35,20 +35,20 @@ mypy>=1.5.0
 
 # File handling for tests
 aiofiles>=23.0.0
-tempfile-tools>=1.0.0
+# tempfile module is built-in to Python, no external package needed
 
-# Database testing
-pytest-postgresql>=5.0.0  # If using PostgreSQL for tests
-pytest-redis>=3.0.0       # If using Redis for tests
+# Database testing (optional - uncomment if needed)
+# pytest-postgresql>=5.0.0  # If using PostgreSQL for tests
+# pytest-redis>=3.0.0       # If using Redis for tests
 
 # Mock services
 responses>=0.23.0
 httpretty>=1.1.4
 
-# Load testing (optional)
-locust>=2.17.0
+# Load testing (optional - uncomment if needed)
+# locust>=2.17.0
 
 # Reporting
 pytest-html>=4.0.0
 pytest-json-report>=1.5.0
-allure-pytest>=2.13.0
+# allure-pytest>=2.13.0  # Optional - uncomment if using Allure reporting

@@ -32,7 +32,7 @@ class TestUploadHandler:
 
     def test_init(self, document_manager):
         """Test UploadHandler initialization."""
-        handler = UploadHandler(document_manager)
+        handler = UploadHandler()
         assert handler.document_manager is document_manager
         assert handler.active_tasks == {}
         assert handler.websocket_connections == {}
@@ -60,9 +60,8 @@ class TestUploadHandler:
         
         # Create invalid file type
         invalid_file = UploadFile(
-            filename="test.exe",
             file=BytesIO(b"invalid content"),
-            content_type="application/octet-stream"
+            filename="test.exe"
         )
         
         task = await upload_handler.process_single_file(invalid_file)
@@ -92,9 +91,8 @@ class TestUploadHandler:
             content = f"Content for file {i}".encode()
             file_obj = BytesIO(content)
             upload_file = UploadFile(
-                filename=f"file_{i}.txt",
                 file=file_obj,
-                content_type="text/plain"
+                filename=f"file_{i}.txt"
             )
             files.append(upload_file)
         
@@ -120,15 +118,13 @@ class TestUploadHandler:
         files = []
         # Valid file
         files.append(UploadFile(
-            filename="valid.txt",
             file=BytesIO(b"valid content"),
-            content_type="text/plain"
+            filename="valid.txt"
         ))
         # Invalid file type
         files.append(UploadFile(
-            filename="invalid.exe",
             file=BytesIO(b"invalid content"),
-            content_type="application/octet-stream"
+            filename="invalid.exe"
         ))
         
         # Mock processing for valid files
@@ -322,9 +318,8 @@ class TestUploadHandler:
         from fastapi import UploadFile
         
         valid_file = UploadFile(
-            filename="test.txt",
             file=BytesIO(b"content"),
-            content_type="text/plain"
+            filename="test.txt"
         )
         
         # This would be tested through process_single_file
@@ -381,9 +376,8 @@ class TestUploadHandler:
             content = f"Content for concurrent file {i}".encode()
             file_obj = BytesIO(content)
             upload_file = UploadFile(
-                filename=f"concurrent_{i}.txt",
                 file=file_obj,
-                content_type="text/plain"
+                filename=f"concurrent_{i}.txt"
             )
             files.append(upload_file)
         
@@ -476,9 +470,8 @@ class TestUploadHandlerIntegration:
         # Create UploadFile
         with open(test_file_path, 'rb') as f:
             upload_file = UploadFile(
-                filename="test_upload.txt",
                 file=f,
-                content_type="text/plain"
+                filename="test_upload.txt"
             )
             
             # Process the file

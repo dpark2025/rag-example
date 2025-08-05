@@ -359,7 +359,7 @@ The system provides comprehensive error handling with:
 Run the comprehensive test suite:
 
 ```bash
-python test_document_versioning.py
+python tests/unit/test_document_versioning.py
 ```
 
 The test suite covers:

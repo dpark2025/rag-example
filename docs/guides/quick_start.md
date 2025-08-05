@@ -1,11 +1,6 @@
-# Quick Start Guide
+# Production Installation Guide
 
-**This file has been moved to `docs/guides/quick_start.md`**
-
-Please refer to the new location for the complete quick start guide:
-- [Quick Start Guide](docs/guides/quick_start.md)
-
-This file will be removed in a future version.
+Get the **production-ready Local RAG System** with monitoring stack running in under 5 minutes.
 
 ## 🚀 Prerequisites
 
@@ -57,7 +52,7 @@ ollama serve
 ollama pull llama3.2:3b
 
 # Install Python dependencies
-pip install -r requirements.reflex.txt
+pip install -r ../../requirements.reflex.txt
 ```
 
 ### Step 2: Start Backend Services
@@ -195,16 +190,16 @@ curl http://localhost:11434/api/tags
 ### Reflex UI Issues
 ```bash
 # Install/update dependencies
-pip install -r requirements.reflex.txt
+pip install -r ../../requirements.reflex.txt
 
 # Test component imports
 python scripts/quick_test.py
 
 # Clear Reflex cache
-rm -rf app/reflex_app/.web/
+rm -rf ../../app/reflex_app/.web/
 
 # Manual start (for debugging)
-cd app/reflex_app
+cd ../../app/reflex_app
 export PYTHONPATH="/absolute/path/to/app/reflex_app"
 reflex run
 ```

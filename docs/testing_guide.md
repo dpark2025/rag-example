@@ -76,12 +76,12 @@ tests/
 Test individual components in isolation with mocked dependencies.
 
 **Backend Unit Tests:**
-- `test_document_manager.py` - Document CRUD operations, filtering, bulk operations
-- `test_upload_handler.py` - File upload processing, WebSocket communication, task management
-- `test_rag_backend.py` - RAG core functionality, embedding generation, similarity search
+- `tests/unit/test_document_management.py` - Document CRUD operations, filtering, bulk operations
+- `tests/unit/test_upload_handler.py` - File upload processing, WebSocket communication, task management
+- `tests/unit/test_rag_backend.py` - RAG core functionality, embedding generation, similarity search
 
 **Frontend Unit Tests:**
-- `test_document_state.py` - Reflex state management, async operations, UI synchronization
+- `tests/unit/test_document_state.py` - Reflex state management, async operations, UI synchronization
 
 **Running Unit Tests:**
 ```bash
@@ -89,7 +89,7 @@ Test individual components in isolation with mocked dependencies.
 pytest tests/unit/ -v
 
 # Specific component
-pytest tests/unit/backend/test_document_manager.py -v
+pytest tests/unit/test_document_management.py -v
 
 # With coverage
 pytest tests/unit/ --cov=app --cov-report=html
@@ -112,7 +112,7 @@ Test interaction between components and external services.
 pytest tests/integration/ -v
 
 # Specific test class
-pytest tests/integration/test_api_endpoints.py::TestDocumentEndpoints -v
+pytest tests/integration/test_integration.py::TestDocumentEndpoints -v
 
 # With service health check
 make test-with-health
@@ -348,7 +348,7 @@ pytest --create-db
 
 **Verbose Output:**
 ```bash
-pytest -v -s tests/unit/backend/test_document_manager.py::TestDocumentManager::test_list_documents
+pytest -v -s tests/unit/test_document_management.py::TestDocumentManager::test_list_documents
 ```
 
 **Debug with pdb:**

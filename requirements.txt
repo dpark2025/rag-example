@@ -1,2 +1,9 @@
 
-reflex==0.8.4
+# Main requirements file - points to comprehensive Reflex requirements
+# Use this for production deployments
+
+# Core framework
+reflex>=0.8.4
+
+# Include all dependencies from requirements.reflex.txt
+-r requirements.reflex.txt
