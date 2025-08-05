@@ -21,6 +21,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pydantic import BaseModel, Field
 from rag_backend import get_rag_system
 from error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity, RecoveryAction
+from performance_cache import get_document_cache
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -102,6 +103,13 @@ class DocumentManager:
         self.rag_system = get_rag_system()
         self._lock = threading.RLock()  # Thread-safe operations
         self._executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="doc_mgr")
+        
+        # Initialize document cache
+        self.document_cache = get_document_cache()
+        
+        # Batch processing settings
+        self.batch_size = 50  # Process documents in batches
+        self.bulk_operation_timeout = 300.0  # 5 minutes
         
     async def create_document(self, 
                             title: str, 
@@ -185,7 +193,7 @@ class DocumentManager:
 
     async def get_document(self, doc_id: str) -> Optional[DocumentMetadata]:
         """
-        Retrieve document metadata by ID.
+        Retrieve document metadata by ID with caching.
         
         Args:
             doc_id: Document identifier
@@ -193,6 +201,13 @@ class DocumentManager:
         Returns:
             DocumentMetadata if found, None otherwise
         """
+        # Try cache first
+        cache_key = self.document_cache._generate_key("doc_metadata", doc_id)
+        cached_doc = self.document_cache.get(cache_key)
+        if cached_doc is not None:
+            logger.debug(f"Retrieved document {doc_id} from cache")
+            return cached_doc
+        
         try:
             with self._lock:
                 # Query ChromaDB for document chunks
@@ -245,6 +260,10 @@ class DocumentManager:
                     error_message=metadata_dict.get("error_message", ""),
                     last_modified=metadata_dict.get("last_modified", metadata_dict.get("upload_timestamp", ""))
                 )
+                
+                # Cache the result
+                self.document_cache.set(cache_key, doc_metadata, ttl=600.0)  # 10 minutes
+                logger.debug(f"Cached document metadata for {doc_id}")
                 
                 return doc_metadata
                 
@@ -465,7 +484,7 @@ class DocumentManager:
 
     async def bulk_delete_documents(self, doc_ids: List[str]) -> BulkOperationResult:
         """
-        Delete multiple documents in bulk.
+        Delete multiple documents in bulk with batch processing.
         
         Args:
             doc_ids: List of document identifiers
@@ -476,30 +495,55 @@ class DocumentManager:
         start_time = datetime.now()
         result = BulkOperationResult()
         
-        for doc_id in doc_ids:
-            try:
-                success, chunks_deleted = await self.delete_document(doc_id)
-                if success:
-                    result.success_count += 1
-                    result.total_chunks_affected += chunks_deleted
-                else:
+        # Process in batches for better performance
+        batches = [doc_ids[i:i + self.batch_size] for i in range(0, len(doc_ids), self.batch_size)]
+        
+        logger.info(f"Starting bulk delete of {len(doc_ids)} documents in {len(batches)} batches")
+        
+        for batch_num, batch in enumerate(batches, 1):
+            logger.debug(f"Processing batch {batch_num}/{len(batches)} ({len(batch)} docs)")
+            
+            # Process batch concurrently
+            tasks = [self.delete_document(doc_id) for doc_id in batch]
+            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # Process results
+            for doc_id, batch_result in zip(batch, batch_results):
+                try:
+                    if isinstance(batch_result, Exception):
+                        result.error_count += 1
+                        result.errors.append({
+                            "doc_id": doc_id,
+                            "error": str(batch_result)
+                        })
+                    else:
+                        success, chunks_deleted = batch_result
+                        if success:
+                            result.success_count += 1
+                            result.total_chunks_affected += chunks_deleted
+                            
+                            # Invalidate cache
+                            cache_key = self.document_cache._generate_key("doc_metadata", doc_id)
+                            self.document_cache.delete(cache_key)
+                        else:
+                            result.error_count += 1
+                            result.errors.append({
+                                "doc_id": doc_id,
+                                "error": "Document not found or deletion failed"
+                            })
+                            
+                except Exception as e:
                     result.error_count += 1
                     result.errors.append({
                         "doc_id": doc_id,
-                        "error": "Document not found or deletion failed"
+                        "error": str(e)
                     })
-                    
-            except Exception as e:
-                result.error_count += 1
-                result.errors.append({
-                    "doc_id": doc_id,
-                    "error": str(e)
-                })
         
         end_time = datetime.now()
         result.processing_time = (end_time - start_time).total_seconds()
         
-        logger.info(f"Bulk delete completed: {result.success_count} success, {result.error_count} errors")
+        logger.info(f"Bulk delete completed in {result.processing_time:.2f}s: "
+                   f"{result.success_count} success, {result.error_count} errors")
         return result
 
     async def get_document_count(self, status_filter: Optional[str] = None) -> int:

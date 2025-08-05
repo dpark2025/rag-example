@@ -1,9 +1,14 @@
-"""Main Reflex RAG Application."""
+"""Enhanced Main Reflex RAG Application with UX Polish."""
 
 import reflex as rx
 from .pages.index import index_page
 from .state.app_state import AppState
 from .state.chat_state import ChatState
+from .components.common.responsive_design import ResponsiveState
+from .components.common.animations import AnimationState
+from .components.common.keyboard_shortcuts import KeyboardShortcutState
+from .components.common.toast_notifications import ToastState
+from .components.common.accessibility import AccessibilityState
 
 # Modern dark glass morphism theme (2025 trend)
 theme = rx.theme(
@@ -46,14 +51,60 @@ style = {
     }
 }
 
-# Create the Reflex app
+# Create the enhanced Reflex app
 app = rx.App(
     style=style,
     theme=theme,
     head_components=[
+        # React libraries
         rx.script(src="https://unpkg.com/react@18/umd/react.development.js"),
         rx.script(src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"),
+        
+        # Meta tags for mobile optimization
+        rx.html(
+            '<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">',
+            tag="head"
+        ),
+        rx.html(
+            '<meta name="theme-color" content="#8b5cf6">',
+            tag="head"
+        ),
+        rx.html(
+            '<meta name="apple-mobile-web-app-capable" content="yes">',
+            tag="head"
+        ),
+        rx.html(
+            '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">',
+            tag="head"
+        ),
+        
+        # Preconnect to improve performance
+        rx.html(
+            '<link rel="preconnect" href="https://fonts.googleapis.com">',
+            tag="head"
+        ),
+        rx.html(
+            '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>',
+            tag="head"
+        ),
+        
+        # Accessibility enhancements
+        rx.html(
+            '<link rel="preload" href="/accessibility-icon.svg" as="image">',
+            tag="head"
+        ),
     ],
+    
+    # Enable state persistence
+    state=[
+        AppState,
+        ChatState,
+        ResponsiveState,
+        AnimationState,
+        KeyboardShortcutState,
+        ToastState,
+        AccessibilityState
+    ]
 )
 
 # Add pages

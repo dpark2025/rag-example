@@ -30,6 +30,9 @@ class ErrorCategory(Enum):
     VALIDATION = "validation"
     AUTHENTICATION = "authentication"
     SYSTEM = "system"
+    CIRCUIT_BREAKER = "circuit_breaker"
+    RETRY_EXHAUSTED = "retry_exhausted"
+    EMBEDDING = "embedding"
     UNKNOWN = "unknown"
 
 

@@ -1,5 +1,5 @@
 """
-Responsive design components and utilities for mobile support.
+Enhanced responsive design components with mobile gestures and touch interactions.
 """
 
 import reflex as rx
@@ -18,7 +18,7 @@ class BreakPoint(Enum):
 
 
 class ResponsiveState(rx.State):
-    """State for managing responsive design."""
+    """Enhanced state for managing responsive design with touch support."""
     
     # Device detection
     screen_width: int = 1024
@@ -26,7 +26,9 @@ class ResponsiveState(rx.State):
     is_mobile: bool = False
     is_tablet: bool = False
     is_desktop: bool = True
+    is_touch_device: bool = False
     current_breakpoint: str = BreakPoint.LG.value
+    device_pixel_ratio: float = 1.0
     
     # UI adaptations
     sidebar_collapsed: bool = False
@@ -36,6 +38,18 @@ class ResponsiveState(rx.State):
     # Layout preferences
     preferred_layout: str = "default"  # default, compact, mobile
     show_mobile_optimizations: bool = True
+    
+    # Touch/gesture state
+    touch_start_x: float = 0
+    touch_start_y: float = 0
+    swipe_threshold: float = 50
+    is_swiping: bool = False
+    last_touch_time: float = 0
+    
+    # Mobile-specific features
+    mobile_keyboard_visible: bool = False
+    safe_area_insets: Dict[str, int] = {"top": 0, "bottom": 0, "left": 0, "right": 0}
+    orientation: str = "portrait"  # portrait, landscape
     
     def update_screen_size(self, width: int, height: int):
         """Update screen dimensions and device type."""

@@ -28,6 +28,7 @@ from document_processing_tracker import processing_tracker, ProcessingStatus
 from pdf_processor import pdf_processor, ExtractionMethod
 from document_intelligence import document_intelligence, DocumentType
 from error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity, RecoveryAction
+from performance_monitor import get_performance_monitor
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -170,8 +171,13 @@ class UploadHandler:
         self.document_manager = get_document_manager()
         self.websocket_manager = WebSocketManager()
         self.active_tasks: Dict[str, UploadTask] = {}
-        self._executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="upload_handler")
+        self._executor = ThreadPoolExecutor(max_workers=6, thread_name_prefix="upload_handler")  # Increased workers
         self._lock = threading.RLock()
+        self.performance_monitor = get_performance_monitor()
+        
+        # Enhanced parallel processing settings
+        self.max_concurrent_uploads = 8  # Increased from 3
+        self.batch_size = 10  # Process files in batches
         
     async def validate_file(self, file: UploadFile) -> None:
         """
@@ -428,7 +434,7 @@ class UploadHandler:
 
     async def process_multiple_files(self, files: List[UploadFile]) -> BulkUploadResult:
         """
-        Process multiple files with parallel processing and progress tracking.
+        Process multiple files with enhanced parallel processing and batching.
         
         Args:
             files: List of uploaded files
@@ -438,17 +444,37 @@ class UploadHandler:
         """
         start_time = datetime.now()
         
-        # Process files concurrently (with reasonable limit)
-        max_concurrent = min(len(files), 3)  # Limit concurrent processing
-        semaphore = asyncio.Semaphore(max_concurrent)
-        
-        async def process_with_semaphore(file: UploadFile) -> UploadTask:
-            async with semaphore:
-                return await self.process_single_file(file)
-        
-        # Start processing all files
-        tasks = [process_with_semaphore(file) for file in files]
-        upload_tasks = await asyncio.gather(*tasks, return_exceptions=True)
+        # Enhanced parallel processing with performance monitoring
+        with self.performance_monitor.timer("bulk_upload_processing"):
+            # Process in batches to avoid overwhelming the system
+            batches = [files[i:i + self.batch_size] for i in range(0, len(files), self.batch_size)]
+            
+            logger.info(f"Processing {len(files)} files in {len(batches)} batches "
+                       f"(max {self.max_concurrent_uploads} concurrent)")
+            
+            all_upload_tasks = []
+            
+            for batch_num, batch in enumerate(batches, 1):
+                logger.debug(f"Processing batch {batch_num}/{len(batches)} ({len(batch)} files)")
+                
+                # Process batch with enhanced concurrency
+                max_concurrent = min(len(batch), self.max_concurrent_uploads)
+                semaphore = asyncio.Semaphore(max_concurrent)
+                
+                async def process_with_semaphore(file: UploadFile) -> UploadTask:
+                    async with semaphore:
+                        return await self.process_single_file(file)
+                
+                # Start processing batch
+                batch_tasks = [process_with_semaphore(file) for file in batch]
+                batch_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
+                all_upload_tasks.extend(batch_results)
+                
+                # Small delay between batches to prevent resource exhaustion
+                if batch_num < len(batches):
+                    await asyncio.sleep(0.1)
+            
+            upload_tasks = all_upload_tasks
         
         # Collect results
         successful_uploads = 0
