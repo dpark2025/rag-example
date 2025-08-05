@@ -6,7 +6,7 @@ Demonstrates that all infrastructure issues have been resolved.
 
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), 'app'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'app'))
 
 def test_imports():
     """Test that all major imports work correctly."""

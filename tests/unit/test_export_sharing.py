@@ -15,7 +15,7 @@ from pathlib import Path
 from datetime import datetime
 
 # Add app directory to Python path
-sys.path.append(str(Path(__file__).parent / "app"))
+sys.path.append(str(Path(__file__).parent.parent.parent / "app"))
 
 from export_manager import get_export_manager, ExportFormat, ExportType, ExportOptions, ExportRequest
 from sharing_service import get_sharing_service, ShareRequest, ShareType, AccessLevel
