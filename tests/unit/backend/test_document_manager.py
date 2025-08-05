@@ -19,9 +19,9 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
-from document_manager import DocumentManager, DocumentMetadata, DocumentFilter, BulkOperationResult
-from rag_backend import LocalRAGSystem
-from error_handlers import ApplicationError, ErrorCategory, ErrorSeverity
+from app.document_manager import DocumentManager, DocumentMetadata, DocumentFilter, BulkOperationResult
+from app.rag_backend import LocalRAGSystem
+from app.error_handlers import ApplicationError, ErrorCategory, ErrorSeverity
 
 
 @pytest.mark.unit

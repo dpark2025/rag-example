@@ -18,7 +18,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
-from rag_backend import LocalRAGSystem, LocalLLMClient
+from app.rag_backend import LocalRAGSystem, LocalLLMClient
 import chromadb
 from sentence_transformers import SentenceTransformer
 
