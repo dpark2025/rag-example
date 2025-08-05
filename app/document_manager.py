@@ -474,6 +474,10 @@ class DocumentManager:
                 # Delete all chunks
                 self.rag_system.collection.delete(ids=chunk_ids)
                 
+                # Invalidate cache for this document
+                cache_key = self.document_cache._generate_key("doc_metadata", doc_id)
+                self.document_cache.delete(cache_key)
+                
                 logger.info(f"Deleted document {doc_id} with {len(chunk_ids)} chunks")
                 return True, len(chunk_ids)
                 
@@ -521,10 +525,7 @@ class DocumentManager:
                         if success:
                             result.success_count += 1
                             result.total_chunks_affected += chunks_deleted
-                            
-                            # Invalidate cache
-                            cache_key = self.document_cache._generate_key("doc_metadata", doc_id)
-                            self.document_cache.delete(cache_key)
+                            # Cache invalidation is handled by delete_document method
                         else:
                             result.error_count += 1
                             result.errors.append({

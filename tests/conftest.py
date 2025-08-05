@@ -90,9 +90,12 @@ def rag_system(clean_chromadb, temp_directory, mock_llm_client):
 
 
 @pytest.fixture
-def document_manager():
-    """Provide document manager instance."""
-    return DocumentManager()
+def document_manager(rag_system):
+    """Provide document manager instance with clean database."""
+    manager = DocumentManager()
+    # Override the RAG system to use the clean test instance
+    manager.rag_system = rag_system
+    return manager
 
 
 @pytest.fixture
@@ -153,10 +156,30 @@ def sample_documents(sample_text_content):
 
 
 @pytest.fixture
-def rag_system_with_documents(rag_system, sample_documents):
-    """RAG system pre-loaded with test documents."""
-    rag_system.add_documents(sample_documents)
-    return rag_system
+def rag_system_with_documents(temp_directory, mock_llm_client, sample_documents):
+    """RAG system pre-loaded with test documents - separate instance."""
+    # Create a separate ChromaDB client for this fixture
+    test_client = chromadb.Client(Settings(
+        persist_directory=":memory:",
+        is_persistent=False,
+        allow_reset=True
+    ))
+    
+    system = LocalRAGSystem(
+        llm_client=mock_llm_client,
+        data_path=temp_directory
+    )
+    system.chroma_client = test_client
+    system.collection = test_client.get_or_create_collection("rag_documents_with_data")
+    system.add_documents(sample_documents)
+    
+    yield system
+    
+    # Cleanup
+    try:
+        test_client.reset()
+    except Exception:
+        pass
 
 
 @pytest.fixture

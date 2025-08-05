@@ -396,6 +396,9 @@ class LocalRAGSystem:
             doc_id = current_count
             
             for doc in documents:
+                # Use provided doc_id if available, otherwise use incrementing counter
+                current_doc_id = doc.get("doc_id", str(doc_id))
+                
                 # Use custom chunking parameters if provided, otherwise use smart chunking
                 if chunk_size is not None and chunk_overlap is not None:
                     chunks = self.custom_chunking(doc['content'], chunk_size, chunk_overlap)
@@ -406,7 +409,7 @@ class LocalRAGSystem:
                     embedding = self.encoder.encode(chunk).tolist()
                     
                     all_chunks.append({
-                        "id": f"doc_{doc_id}_chunk_{i}",
+                        "id": f"doc_{current_doc_id}_chunk_{i}",
                         "embedding": embedding,
                         "text": chunk,
                         "metadata": self._clean_metadata({
@@ -414,7 +417,7 @@ class LocalRAGSystem:
                             "source": doc.get("source", "unknown"),
                             "chunk_index": i,
                             "total_chunks": len(chunks),
-                            "doc_id": str(doc_id),
+                            "doc_id": str(current_doc_id),
                             "content_preview": chunk[:150] + "..." if len(chunk) > 150 else chunk,
                             "file_type": doc.get("file_type", "txt"),
                             "upload_timestamp": doc.get("upload_timestamp", 

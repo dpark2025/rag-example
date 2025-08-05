@@ -313,8 +313,9 @@ development/
 scratch/
 playground/
 
-# Issues and troubleshooting (from CODEPROJECTS.md)
+# Issues and troubleshooting (from CODEPROJECTS.md) - but allow numbered issues
 issues/
+!issues/[0-9][0-9]-*.md
 
 # Test output files and reports
 test-report-*.html
