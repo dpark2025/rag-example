@@ -21,3 +21,33 @@ websockets==12.0
 
 # Enhanced HTTP client
 httpx==0.25.2
+
+# Export and sharing features
+reportlab==4.0.4
+markdown==3.5.1
+beautifulsoup4==4.12.2
+aiofiles==23.2.1
+
+# Multilingual support dependencies
+# Language detection and text processing
+langdetect==1.0.9
+polyglot==16.7.4
+# Note: polyglot requires system packages: libicu-dev python3-dev
+# Alternative lightweight language detection (used in our implementation)
+# No additional dependencies needed - using custom implementation
+
+# Internationalization and localization
+babel==2.13.1
+
+# Enhanced text processing for multilingual content
+regex==2023.10.3
+unicodedata2==15.1.0
+
+# Optional: Advanced multilingual models (uncomment if needed)
+# transformers==4.35.2  # For advanced multilingual models
+# torch==2.1.1  # Required for transformers
+# numpy==1.24.4  # Already included with sentence-transformers
+
+# Translation support (offline models - uncomment if needed)
+# sacremoses==0.1.1  # For text preprocessing
+# sentencepiece==0.1.99  # For tokenization
