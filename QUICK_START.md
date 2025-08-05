@@ -1,6 +1,6 @@
-# Quick Start Guide
+# Production Installation Guide
 
-Get the Local RAG System running in under 5 minutes.
+Get the **production-ready Local RAG System** with monitoring stack running in under 5 minutes.
 
 ## 🚀 Prerequisites
 
@@ -9,17 +9,37 @@ Get the Local RAG System running in under 5 minutes.
 3. **Podman** or **Docker** for containers
 4. **Make** (usually pre-installed on macOS/Linux)
 
-## ⚡ Two-Command Setup
+## ⚡ Production Quick Start (Recommended)
 
 ```bash
-# 1. Start backend services (containers)
+# 1. Production deployment with monitoring
+docker-compose -f docker-compose.production.yml up -d
+docker-compose -f docker-compose.monitoring.yml up -d
+
+# 2. Access production interfaces
+# - Main UI: http://localhost:3000
+# - Monitoring: http://localhost:3001 (Grafana: admin/admin)
+# - API Docs: http://localhost:8000/docs
+```
+
+**🚀 Enterprise Features Available:**
+- Complete document lifecycle management
+- Multi-format PDF processing
+- Production monitoring (Prometheus + Grafana)
+- Health checks and error recovery
+- Bulk operations and advanced search
+
+## ⚡ Development Quick Start
+
+```bash
+# 1. Development backend services
 make start
 
-# 2. Start frontend UI (native)
+# 2. Start frontend UI
 make start-ui
 ```
 
-That's it! 🎉 System is ready at http://localhost:3000
+That's it! 🎉 System ready at http://localhost:3000
 
 ## 📋 Detailed Setup
 
@@ -63,11 +83,13 @@ The startup script will automatically:
 - ✅ Set proper environment variables  
 - ✅ Start Reflex on http://localhost:3000
 
-### Step 4: Access the System
-- **Main UI**: http://localhost:3000 (Reflex chat interface)
-- **API Docs**: http://localhost:8000/docs (Interactive API docs)
-- **API Info**: http://localhost:8000/info (Endpoint reference)
-- **Health Check**: http://localhost:8000/health (System status)
+### Step 4: Access the Full System
+- **Main UI**: http://localhost:3000 (Complete document management + chat)
+- **Document Dashboard**: http://localhost:3000/documents (Upload & manage documents)
+- **API Docs**: http://localhost:8000/docs (Full v1 API documentation)
+- **Health Monitoring**: http://localhost:8000/health (Real-time system health)
+- **Grafana Dashboard**: http://localhost:3001 (Production monitoring - admin/admin)
+- **Prometheus Metrics**: http://localhost:9090 (Raw metrics)
 
 #### Port Architecture
 The system uses multiple ports for different services:
@@ -80,11 +102,13 @@ The system uses multiple ports for different services:
 └─────────────────┘                └─────────────────┘                 └─────────────────┘
 ```
 
-- **Port 3000**: Reflex Frontend (React UI)
-- **Port 8001**: Reflex Backend (State management, WebSocket)
-- **Port 8000**: RAG Backend (FastAPI, document processing, LLM queries)
-- **Port 8002**: ChromaDB (Vector database)
-- **Port 11434**: Ollama (Local LLM server)
+- **Port 3000**: Reflex Frontend (Complete UI with document management)
+- **Port 8001**: Reflex Backend (State management, WebSocket, real-time updates)
+- **Port 8000**: RAG Backend (FastAPI v1, document lifecycle, PDF processing)
+- **Port 8002**: ChromaDB (Production vector database with persistence)
+- **Port 11434**: Ollama (Local LLM server with auto-discovery)
+- **Port 3001**: Grafana (Production monitoring dashboard)
+- **Port 9090**: Prometheus (Metrics collection and alerting)
 
 ## 🔧 Development Commands
 
@@ -105,11 +129,23 @@ make build-reflex   # Build UI container (experimental)
 make start-reflex   # Start UI in container (experimental)
 ```
 
-### Testing & Debugging
+### Testing & Validation
 ```bash
-python scripts/quick_test.py    # Test component imports
-make help                       # Show all commands
-curl http://localhost:8000/info # API endpoint reference
+# Quick development tests
+make test-quick                 # Fast unit tests (~30s)
+
+# Comprehensive testing
+make test-all                   # Full test suite with coverage
+make test-integration           # API integration tests
+make test-e2e                   # End-to-end user workflows
+
+# System validation
+make health                     # Complete system health check
+python scripts/quick_test.py    # Component import validation
+curl http://localhost:8000/health  # Real-time health status
+
+# Performance testing
+python scripts/test_full_system.py  # End-to-end performance
 ```
 
 ### Model Management
@@ -235,29 +271,59 @@ make restart  # Rebuild and restart containers
 ```
 rag-example/
 ├── app/
-│   ├── main.py                 # FastAPI backend
-│   ├── rag_backend.py         # RAG processing engine  
-│   └── reflex_app/            # Reflex UI application
-│       ├── rag_reflex_app/    # Main app module
-│       │   ├── components/    # UI components
-│       │   ├── state/         # App state management
-│       │   └── layouts/       # Page layouts
-│       └── rxconfig.py        # Reflex configuration
-├── scripts/
-│   ├── start_reflex.sh        # UI startup script
-│   └── quick_test.py          # Component test suite
-├── Makefile                   # Development commands
-├── docker-compose.backend.yml # Backend containers
-└── requirements.reflex.txt    # Python dependencies
+│   ├── main.py                 # FastAPI v1 backend with complete API
+│   ├── rag_backend.py          # Enhanced RAG processing engine
+│   ├── document_manager.py     # Complete document lifecycle management
+│   ├── pdf_processor.py        # Multi-format PDF processing pipeline  
+│   ├── document_intelligence.py # Smart document analysis & optimization
+│   ├── upload_handler.py       # Robust multi-file upload processing
+│   ├── error_handlers.py       # Comprehensive error management
+│   ├── health_monitor.py       # Production health monitoring & diagnostics
+│   ├── mcp_server.py          # Model Context Protocol interface
+│   └── reflex_app/            # Complete Reflex UI application
+│       ├── rag_reflex_app/    # Main app with document management
+│       │   ├── components/    # Full UI component library
+│       │   ├── state/         # Advanced state management  
+│       │   ├── pages/         # Chat + Documents + Dashboard pages
+│       │   └── services/      # API integration services
+│       └── rxconfig.py        # Production Reflex configuration
+├── docs/                      # Complete technical documentation
+├── planning/                  # Project roadmaps & development plans
+├── scripts/                   # Comprehensive testing & utility scripts
+├── tests/                     # Full test suite (unit, integration, e2e)
+├── docker-compose.*.yml       # Production deployment configurations
+├── Makefile                   # Complete build & deployment automation
+└── requirements*.txt          # Comprehensive dependency management
 ```
 
 ## 📚 Next Steps
 
-1. **Add Documents**: Upload documents via the Reflex UI
-2. **Chat**: Ask questions about your documents  
-3. **Customize**: Modify components in `app/reflex_app/rag_reflex_app/`
-4. **Extend**: Add new API endpoints in `app/main.py`
-5. **Deploy**: Use container setup for production
+1. **Upload Documents**: Navigate to Documents page, drag-and-drop files, monitor processing
+2. **Document Management**: Organize, search, filter, and manage your document library
+3. **Intelligent Chat**: Ask questions about your documents with source attribution
+4. **Monitor Performance**: Use Grafana dashboard for system health and performance
+5. **Extend & Customize**: Modify components and add new features
+6. **Production Deploy**: Use monitoring stack for enterprise deployment
+
+## 🚀 Production Features Available
+
+**Document Management:**
+- ✅ Drag-and-drop document upload with progress tracking
+- ✅ Multi-format PDF processing with intelligent text extraction
+- ✅ Document dashboard with search, filter, and bulk operations
+- ✅ Real-time processing status and error recovery
+
+**Intelligence & Chat:**
+- ✅ Advanced RAG with source attribution and confidence scoring
+- ✅ Multi-document queries with intelligent context building
+- ✅ Real-time chat with typing indicators and auto-scroll
+
+**Production Infrastructure:**
+- ✅ Complete monitoring stack (Prometheus + Grafana)
+- ✅ Health checks, error tracking, and automated recovery
+- ✅ Performance metrics and resource usage monitoring
+- ✅ Enterprise security and deployment configurations
+- ✅ Comprehensive testing suite and CI/CD readiness
 
 ## 💡 Development Tips
 

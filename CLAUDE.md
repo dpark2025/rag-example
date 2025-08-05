@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a **fully local RAG (Retrieval-Augmented Generation) system** with a modern Reflex web interface. The system runs completely offline, combining document retrieval with local LLM generation to create an intelligent question-answering system that processes user documents without external API calls.
 
-**✅ Current Status**: Reflex UI implementation complete (Phase 2) with chat interface, source attribution, and real-time updates. The system features automatic Ollama connectivity detection and smart host gateway resolution for seamless communication.
+**✅ Current Status**: Feature-complete RAG system with all phases implemented. Full document lifecycle management, PDF processing, production monitoring stack, and comprehensive error handling. The system is production-ready with enterprise-grade features including monitoring, security, and automated deployments.
 
 ## Architecture
 
@@ -15,54 +15,91 @@ The system uses a **modern 3-tier architecture**:
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │  Reflex UI      │◄──►│   RAG Backend    │◄──►│   ChromaDB      │
-│  - Chat Interface│    │   - FastAPI      │    │   - Local Vec DB│
-│  - Port 3000    │    │   - Smart chunk  │    │   - Embeddings  │
+│  - Chat + Docs  │    │   - FastAPI v1   │    │   - Vector DB   │
+│  - Port 3000    │    │   - Document Mgmt│    │   - Embeddings  │
+│  - Real-time UI │    │   - PDF Process  │    │   - Port 8002   │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
-         │                        │
-         │                        ▼
-         │              ┌─────────────────┐
-         └─────────────►│   Local LLM     │
+         │                        │                        │
+         │                        ▼                        │
+         │              ┌─────────────────┐                │
+         │              │   Monitoring    │                │
+         │              │   - Prometheus  │                │
+         │              │   - Grafana     │                │
+         │              │   - Health Chks │                │
+         │              └─────────────────┘                │
+         │                        │                        │
+         └────────────────────────┼────────────────────────┘
+                                  ▼
+                        ┌─────────────────┐
+                        │   Local LLM     │
                         │   - Ollama      │
-                        │   - Local Models │
+                        │   - Port 11434  │
                         └─────────────────┘
 ```
 
 **Core Components:**
-- **Reflex UI** (`app/reflex_app/`): Modern web interface with real-time chat
-- **FastAPI Backend** (`main.py`): REST API server with RAG endpoints
-- **RAG Engine** (`rag_backend.py`): Core processing with smart chunking and embedding
-- **MCP Server** (`mcp_server.py`): Model Context Protocol interface for tools
-- **Ollama**: Local LLM server for answer generation (runs on host)
-- **ChromaDB**: Local vector database for document storage
+- **Reflex UI** (`app/reflex_app/`): Complete document management + chat interface
+- **FastAPI Backend** (`main.py`): Full v1 API with document lifecycle endpoints
+- **RAG Engine** (`rag_backend.py`): Advanced processing with intelligent chunking
+- **Document Manager** (`document_manager.py`): Complete CRUD operations
+- **PDF Processor** (`pdf_processor.py`): Multi-format document extraction
+- **Document Intelligence** (`document_intelligence.py`): Smart document analysis
+- **Upload Handler** (`upload_handler.py`): Robust file upload processing
+- **Error Handlers** (`error_handlers.py`): Comprehensive error management
+- **Health Monitor** (`health_monitor.py`): System health and diagnostics
+- **MCP Server** (`mcp_server.py`): Model Context Protocol interface
+- **Monitoring Stack**: Prometheus, Grafana, AlertManager
+- **Ollama**: Local LLM server (auto-detected by containers)
+- **ChromaDB**: Production vector database with persistence
 
 ## Development Commands
 
-### Quick Start
+### Quick Start (Production)
+```bash
+# Production deployment with monitoring
+docker-compose -f docker-compose.production.yml up -d
+docker-compose -f docker-compose.monitoring.yml up -d
+
+# Access interfaces
+# - Main UI: http://localhost:3000
+# - API Docs: http://localhost:8000/docs
+# - Monitoring: http://localhost:3001 (Grafana)
+# - Metrics: http://localhost:9090 (Prometheus)
+```
+
+### Development Setup
 ```bash
 # Install dependencies
 pip install -r requirements.reflex.txt
 pip install -r app/requirements.txt
 
-# Start RAG Backend
-cd app && python main.py
+# Start services with monitoring
+make setup-monitoring
+make run-development
 
-# Start Reflex UI (new terminal)
-cd app/reflex_app
-reflex init --name rag_reflex_app --template blank
-reflex run
+# Or start services individually
+cd app && python main.py  # Backend
+cd app/reflex_app && reflex run  # Frontend
 ```
 
 ### Development Workflow
 ```bash
-# Test Reflex components
-python scripts/test_reflex_phase2.py
+# Run comprehensive tests
+pytest tests/  # Full test suite
+python -m pytest tests/test_document_management.py  # Document tests
+python -m pytest tests/test_pdf_processing.py  # PDF tests
 
-# Quick component test
-python scripts/quick_test.py
+# Development testing
+python scripts/test_full_system.py  # End-to-end tests
+python scripts/test_upload_workflow.py  # Upload workflow
+python scripts/test_monitoring.py  # Health monitoring
 
-# Access interfaces
-# - Reflex UI: http://localhost:3000
-# - FastAPI Docs: http://localhost:8000/docs
+# Access all interfaces
+# - Main UI: http://localhost:3000
+# - API v1 Docs: http://localhost:8000/docs
+# - Health Status: http://localhost:8000/health
+# - Metrics: http://localhost:9090
+# - Monitoring: http://localhost:3001
 # - Ollama API: http://localhost:11434
 ```
 
@@ -79,7 +116,14 @@ The system implements several performance optimizations:
 
 ### Document Processing Pipeline
 ```
-📄 Upload → 🔪 Smart Chunking → 🧠 Embeddings → 💾 ChromaDB → ✅ Ready for Queries
+📄 Upload → 🔍 Type Detection → 📝 Content Extraction → 🧠 Intelligence Analysis → 
+🔪 Smart Chunking → 🧠 Embeddings → 💾 ChromaDB → 📊 Status Tracking → ✅ Ready for Queries
+```
+
+### Document Management Pipeline
+```
+📁 Document Dashboard → 📊 Status View → 🔄 Bulk Operations → 🗑️ Safe Deletion → 
+📈 Processing Metrics → 🔍 Search & Filter → 📋 Metadata Display
 ```
 
 ### Query Processing Pipeline  
@@ -126,7 +170,10 @@ The `/agents/` directory contains specialized agent configurations:
 ## Interface Access Points
 
 - **Reflex UI**: http://localhost:3000 (primary interface)
-- **FastAPI Docs**: http://localhost:8000/docs (API documentation)
+- **FastAPI Docs**: http://localhost:8000/docs (API documentation)  
+- **System Health**: http://localhost:8000/health (health monitoring)
+- **Grafana Dashboard**: http://localhost:3001 (production monitoring)
+- **Prometheus Metrics**: http://localhost:9090 (metrics collection)
 - **Ollama API**: http://localhost:11434 (LLM server)
 
 ## Port Architecture
@@ -186,21 +233,32 @@ The system uses a multi-port architecture for service separation and scalability
 ## Important Implementation Details
 
 ### Document Upload Methods
-1. **Reflex UI**: Manual entry, file upload, bulk processing (Phase 3)
-2. **REST API**: Programmatic uploads via `/documents` endpoints  
+1. **Reflex UI**: Drag-and-drop upload, bulk processing, progress tracking
+2. **REST API v1**: Complete `/api/v1/documents/*` endpoints with status tracking
 3. **MCP Protocol**: Tool-based integration for agent systems
+4. **Bulk Upload**: Multi-file processing with parallel execution
+5. **PDF Processing**: Multi-format PDF support with text and metadata extraction
 
-### RAG Query Process
-The system uses a two-phase approach:
-1. **Retrieval Phase**: Convert query to embedding, search vector DB, filter by relevance
-2. **Generation Phase**: Build context from retrieved chunks, send to LLM for synthesis
+### Enhanced RAG Query Process
+The system uses an intelligent multi-phase approach:
+1. **Query Analysis**: Analyze query intent and complexity
+2. **Document Intelligence**: Apply document-type-specific retrieval strategies
+3. **Retrieval Phase**: Multi-stage vector search with adaptive filtering
+4. **Context Building**: Hierarchical context assembly with source attribution
+5. **Generation Phase**: LLM synthesis with error handling and fallbacks
+6. **Response Enhancement**: Source linking, confidence scoring, and metrics tracking
 
-### Local-First Design
-- All components run offline after initial setup
-- No external API dependencies 
-- Data never leaves the local machine
-- Persistent storage survives restarts
-- Smart host gateway detection for seamless Ollama connectivity
+### Production-Ready Local-First Design
+- **Complete Offline Operation**: All components run locally after setup
+- **Zero External Dependencies**: No API calls to external services
+- **Data Privacy**: All data stays on your infrastructure
+- **Persistent Storage**: Full data persistence with backup strategies
+- **Smart Connectivity**: Auto-detection of Ollama and service discovery
+- **High Availability**: Multi-replica deployments with health monitoring
+- **Monitoring & Alerting**: Complete observability stack
+- **Error Recovery**: Comprehensive error handling and recovery mechanisms
+- **Performance Optimization**: Caching, connection pooling, and resource management
+- **Security Hardening**: Container security, secrets management, SSL/TLS
 
 ## Development Guidelines
 
@@ -218,9 +276,20 @@ The system uses a two-phase approach:
 
 - ✅ **Phase 1**: Foundation Setup - Complete
 - ✅ **Phase 2**: Chat Interface - Complete
-- 🔄 **Phase 3**: Document Management - Next
-- ⏳ **Phase 4**: PDF Processing - Planned
-- ⏳ **Phase 5**: Enhanced UI - Planned
-- ⏳ **Phase 6**: System Integration - Planned
+- ✅ **Phase 3**: Document Management - Complete (upload, dashboard, operations)
+- ✅ **Phase 4**: PDF Processing & Intelligence - Complete
+- ✅ **Phase 5**: Production Readiness & UX Polish - Complete
+- ✅ **Production Infrastructure**: Complete (monitoring, CI/CD, security)
+- 🚀 **Status**: **PRODUCTION READY** - Feature-complete system ready for deployment
 
-The system is designed for rapid development and deployment while maintaining production-ready performance and comprehensive RAG capabilities.
+**Latest Capabilities Added:**
+- Complete document lifecycle management with drag-and-drop upload
+- Multi-format PDF processing with intelligent text extraction
+- Real-time processing status tracking and error recovery
+- Production monitoring stack with Prometheus + Grafana
+- Comprehensive error handling and health monitoring
+- Bulk document operations and advanced search/filtering
+- Enterprise-grade security and deployment configurations
+- Automated backup and recovery procedures
+
+The system is now a fully-featured, production-ready RAG platform suitable for enterprise deployment with comprehensive document management, monitoring, and operational capabilities.
