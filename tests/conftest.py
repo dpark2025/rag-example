@@ -78,6 +78,48 @@ def mock_llm_client():
 
 
 @pytest.fixture
+def mock_llm_client_with_pooling():
+    """Provide properly mocked LLM client that uses connection pooling."""
+    from unittest.mock import Mock, patch
+    import requests
+    
+    def create_mock_pooled_llm_client():
+        # Mock response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "message": {"content": "Test response from LLM."}
+        }
+        
+        # Mock session
+        mock_session = Mock(spec=requests.Session)
+        mock_session.post.return_value = mock_response
+        mock_session.get.return_value = mock_response
+        
+        # Mock pooled connection
+        mock_pooled_conn = Mock()
+        mock_pooled_conn.connection = mock_session
+        
+        # Mock HTTP pool
+        mock_http_pool = Mock()
+        mock_http_pool.get_connection.return_value = mock_pooled_conn
+        mock_http_pool.return_connection = Mock()
+        
+        # Mock pool manager
+        mock_manager = Mock()
+        mock_manager.create_ollama_pool.return_value = mock_http_pool
+        mock_manager.create_chromadb_pool.return_value = Mock()
+        
+        with patch('app.rag_backend.get_pool_manager', return_value=mock_manager):
+            from app.rag_backend import LocalLLMClient
+            client = LocalLLMClient()
+            client.http_pool = mock_http_pool  # Override with mock
+            return client
+    
+    return create_mock_pooled_llm_client()
+
+
+@pytest.fixture
 def rag_system(clean_chromadb, temp_directory, mock_llm_client):
     """Provide RAG system with clean database and mock LLM."""
     system = LocalRAGSystem(

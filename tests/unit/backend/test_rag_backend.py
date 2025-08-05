@@ -10,8 +10,9 @@ Date: 2025-08-04
 
 import pytest
 import numpy as np
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch, MagicMock, PropertyMock
 from typing import List, Dict, Any
+import requests
 
 # Import modules under test
 import sys
@@ -21,6 +22,30 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 from app.rag_backend import LocalRAGSystem, LocalLLMClient
 import chromadb
 from sentence_transformers import SentenceTransformer
+
+
+def create_mock_http_session_response(status_code=200, json_data=None, text_data=""):
+    """Helper to create mock HTTP response for session calls."""
+    mock_response = Mock()
+    mock_response.status_code = status_code
+    mock_response.text = text_data
+    if json_data:
+        mock_response.json.return_value = json_data
+    return mock_response
+
+
+def mock_connection_pool_with_response(mock_response):
+    """Helper to mock the connection pool HTTP session."""
+    # Create mock session
+    mock_session = Mock(spec=requests.Session)
+    mock_session.post.return_value = mock_response
+    mock_session.get.return_value = mock_response
+    
+    # Create mock pooled connection
+    mock_pooled_conn = Mock()
+    mock_pooled_conn.connection = mock_session
+    
+    return mock_pooled_conn, mock_session
 
 
 @pytest.mark.unit
@@ -46,53 +71,94 @@ class TestLocalLLMClient:
             client = LocalLLMClient()
             assert client.base_url == "http://remote-ollama:11434"
 
-    @patch('requests.post')
-    def test_chat_success(self, mock_post):
+    def test_chat_success(self):
         """Test successful chat interaction."""
         # Mock successful response
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "message": {"content": "This is a test response from the LLM."}
-        }
-        mock_post.return_value = mock_response
+        mock_response = create_mock_http_session_response(
+            status_code=200,
+            json_data={"message": {"content": "This is a test response from the LLM."}}
+        )
         
-        client = LocalLLMClient()
-        messages = [{"role": "user", "content": "Test question"}]
+        # Mock connection pool to return our mock session
+        mock_pooled_conn, mock_session = mock_connection_pool_with_response(mock_response)
         
-        response = client.chat(messages)
-        
-        assert response == "This is a test response from the LLM."
-        mock_post.assert_called_once()
+        with patch('app.rag_backend.get_pool_manager') as mock_pool_manager:
+            mock_http_pool = Mock()
+            mock_http_pool.get_connection.return_value = mock_pooled_conn
+            mock_http_pool.return_connection = Mock()
+            
+            mock_manager = Mock()
+            mock_manager.create_ollama_pool.return_value = mock_http_pool
+            mock_pool_manager.return_value = mock_manager
+            
+            client = LocalLLMClient()
+            client.http_pool = mock_http_pool  # Override with mock
+            
+            messages = [{"role": "user", "content": "Test question"}]
+            response = client.chat(messages)
+            
+            assert response == "This is a test response from the LLM."
+            mock_session.post.assert_called_once()
+            mock_http_pool.get_connection.assert_called_once()
+            mock_http_pool.return_connection.assert_called_once_with(mock_pooled_conn, error_occurred=False)
 
-    @patch('requests.post')
-    def test_chat_failure(self, mock_post):
+    def test_chat_failure(self):
         """Test chat interaction with API failure."""
         # Mock failed response
-        mock_response = Mock()
-        mock_response.status_code = 500
-        mock_response.text = "Internal server error"
-        mock_post.return_value = mock_response
+        mock_response = create_mock_http_session_response(
+            status_code=500,
+            text_data="Internal server error"
+        )
         
-        client = LocalLLMClient()
-        messages = [{"role": "user", "content": "Test question"}]
+        # Mock connection pool to return our mock session
+        mock_pooled_conn, mock_session = mock_connection_pool_with_response(mock_response)
         
-        response = client.chat(messages)
-        
-        assert "trouble connecting" in response
+        with patch('app.rag_backend.get_pool_manager') as mock_pool_manager:
+            mock_http_pool = Mock()
+            mock_http_pool.get_connection.return_value = mock_pooled_conn
+            mock_http_pool.return_connection = Mock()
+            
+            mock_manager = Mock()
+            mock_manager.create_ollama_pool.return_value = mock_http_pool
+            mock_pool_manager.return_value = mock_manager
+            
+            client = LocalLLMClient()
+            client.http_pool = mock_http_pool  # Override with mock
+            
+            messages = [{"role": "user", "content": "Test question"}]
+            response = client.chat(messages)
+            
+            assert "not available" in response
+            mock_session.post.assert_called()
+            mock_http_pool.return_connection.assert_called_with(mock_pooled_conn, error_occurred=True)
 
-    @patch('requests.post')
-    def test_chat_timeout(self, mock_post):
+    def test_chat_timeout(self):
         """Test chat interaction with timeout."""
-        # Mock timeout exception
-        mock_post.side_effect = Exception("Connection timeout")
+        # Mock session that raises timeout exception
+        mock_session = Mock(spec=requests.Session)
+        mock_session.post.side_effect = Exception("Connection timeout")
         
-        client = LocalLLMClient()
-        messages = [{"role": "user", "content": "Test question"}]
+        mock_pooled_conn = Mock()
+        mock_pooled_conn.connection = mock_session
         
-        response = client.chat(messages)
-        
-        assert "not available" in response
+        with patch('app.rag_backend.get_pool_manager') as mock_pool_manager:
+            mock_http_pool = Mock()
+            mock_http_pool.get_connection.return_value = mock_pooled_conn
+            mock_http_pool.return_connection = Mock()
+            
+            mock_manager = Mock()
+            mock_manager.create_ollama_pool.return_value = mock_http_pool
+            mock_pool_manager.return_value = mock_manager
+            
+            client = LocalLLMClient()
+            client.http_pool = mock_http_pool  # Override with mock
+            
+            messages = [{"role": "user", "content": "Test question"}]
+            response = client.chat(messages)
+            
+            assert "not available" in response
+            mock_session.post.assert_called()
+            mock_http_pool.return_connection.assert_called_with(mock_pooled_conn, error_occurred=True)
 
     @patch('requests.get')
     def test_health_check_success(self, mock_get):
@@ -101,32 +167,58 @@ class TestLocalLLMClient:
         mock_response.status_code = 200
         mock_get.return_value = mock_response
         
-        client = LocalLLMClient()
-        result = client.health_check()
-        
-        assert result is True
+        with patch('app.rag_backend.get_pool_manager') as mock_pool_manager:
+            mock_http_pool = Mock()
+            mock_manager = Mock()
+            mock_manager.create_ollama_pool.return_value = mock_http_pool
+            mock_pool_manager.return_value = mock_manager
+            
+            client = LocalLLMClient()
+            result = client.health_check()
+            
+            assert result is True
+            mock_get.assert_called_once()
 
     @patch('requests.get')
     def test_health_check_failure(self, mock_get):
         """Test failed health check."""
         mock_get.side_effect = Exception("Connection failed")
         
-        client = LocalLLMClient()
-        result = client.health_check()
-        
-        assert result is False
+        with patch('app.rag_backend.get_pool_manager') as mock_pool_manager:
+            mock_http_pool = Mock()
+            mock_manager = Mock()
+            mock_manager.create_ollama_pool.return_value = mock_http_pool
+            mock_pool_manager.return_value = mock_manager
+            
+            client = LocalLLMClient()
+            result = client.health_check()
+            
+            assert result is False
+            mock_get.assert_called_once()
 
     def test_chat_with_custom_parameters(self):
         """Test chat with custom temperature and max_tokens."""
-        with patch('requests.post') as mock_post:
-            mock_response = Mock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {
-                "message": {"content": "Custom response"}
-            }
-            mock_post.return_value = mock_response
+        # Mock successful response
+        mock_response = create_mock_http_session_response(
+            status_code=200,
+            json_data={"message": {"content": "Custom response"}}
+        )
+        
+        # Mock connection pool to return our mock session
+        mock_pooled_conn, mock_session = mock_connection_pool_with_response(mock_response)
+        
+        with patch('app.rag_backend.get_pool_manager') as mock_pool_manager:
+            mock_http_pool = Mock()
+            mock_http_pool.get_connection.return_value = mock_pooled_conn
+            mock_http_pool.return_connection = Mock()
+            
+            mock_manager = Mock()
+            mock_manager.create_ollama_pool.return_value = mock_http_pool
+            mock_pool_manager.return_value = mock_manager
             
             client = LocalLLMClient()
+            client.http_pool = mock_http_pool  # Override with mock
+            
             messages = [{"role": "user", "content": "Test"}]
             
             response = client.chat(
@@ -137,12 +229,14 @@ class TestLocalLLMClient:
             )
             
             # Verify the request was made with correct parameters
-            call_args = mock_post.call_args
+            mock_session.post.assert_called_once()
+            call_args = mock_session.post.call_args
             request_data = call_args[1]['json']
             
             assert request_data['model'] == "llama3.2:7b"
             assert request_data['options']['temperature'] == 0.3
             assert request_data['options']['num_predict'] == 500
+            assert response == "Custom response"
 
 
 @pytest.mark.unit
@@ -391,8 +485,9 @@ class TestLocalRAGSystem:
 
     def test_rag_query_no_documents(self, rag_system):
         """Test RAG query with no documents in database."""
-        rag_system.collection = Mock()
-        rag_system.collection.count = Mock(return_value=0)
+        mock_collection = Mock()
+        mock_collection.count.return_value = 0
+        rag_system.collection = mock_collection
         
         query = "What is artificial intelligence?"
         
@@ -405,15 +500,20 @@ class TestLocalRAGSystem:
         """Test successful RAG query processing."""
         query = "What is artificial intelligence?"
         
-        # Mock collection count
-        rag_system.collection.count = Mock(return_value=5)
+        # Mock the collection with proper methods
+        mock_collection = Mock()
+        mock_collection.count.return_value = 5
+        rag_system.collection = mock_collection
         
-        # Mock similarity search results
+        # Mock similarity search results with proper structure
         search_results = [
             {
                 "content": sample_text_content[:200],
                 "metadata": {"title": "AI Overview", "source": "test1"},
-                "similarity": 0.9
+                "similarity": 0.9,
+                "title": "AI Overview",  # Direct access needed by rag_query
+                "score": 0.9,  # Direct access needed by rag_query  
+                "doc_id": "test1"
             }
         ]
         rag_system.adaptive_retrieval = Mock(return_value=search_results)
@@ -435,9 +535,19 @@ class TestLocalRAGSystem:
         max_chunks = 3
         
         # Mock dependencies
-        rag_system.collection.count = Mock(return_value=10)
+        mock_collection = Mock()
+        mock_collection.count.return_value = 10
+        rag_system.collection = mock_collection
+        
         rag_system.adaptive_retrieval = Mock(return_value=[
-            {"content": f"Content {i}", "metadata": {"title": f"Doc {i}", "source": f"test{i}"}, "similarity": 0.9 - i*0.1}
+            {
+                "content": f"Content {i}", 
+                "metadata": {"title": f"Doc {i}", "source": f"test{i}"}, 
+                "similarity": 0.9 - i*0.1,
+                "title": f"Doc {i}",
+                "score": 0.9 - i*0.1,
+                "doc_id": f"test{i}"
+            }
             for i in range(5)
         ])
         mock_llm_client.chat.return_value = "Test response"
@@ -452,7 +562,9 @@ class TestLocalRAGSystem:
         query = "Very specific query with no matches"
         
         # Mock collection count
-        rag_system.collection.count = Mock(return_value=5)
+        mock_collection = Mock()
+        mock_collection.count.return_value = 5
+        rag_system.collection = mock_collection
         
         # Mock empty search results
         rag_system.adaptive_retrieval = Mock(return_value=[])
