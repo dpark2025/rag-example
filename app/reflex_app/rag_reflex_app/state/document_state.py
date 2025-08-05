@@ -110,9 +110,9 @@ class DocumentState(rx.State):
                 params["status"] = status
             if title_contains:
                 params["title_contains"] = title_contains
-            if limit:
+            if limit is not None:
                 params["limit"] = limit
-            if offset:
+            if offset is not None:
                 params["offset"] = offset
             
             async with httpx.AsyncClient() as client:
@@ -280,7 +280,7 @@ class DocumentState(rx.State):
     
     def select_all_documents(self):
         """Select all visible documents."""
-        visible_docs = self.get_filtered_documents()
+        visible_docs = self.get_filtered_documents
         self.selected_documents = [doc.doc_id for doc in visible_docs]
     
     def clear_selection(self):
