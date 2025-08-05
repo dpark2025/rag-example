@@ -141,9 +141,12 @@ def document_manager(rag_system):
 
 
 @pytest.fixture
-def upload_handler():
-    """Provide upload handler instance."""
-    return UploadHandler()
+def upload_handler(document_manager):
+    """Provide upload handler instance with mocked document manager."""
+    handler = UploadHandler()
+    # Override the document manager to use the test fixture
+    handler.document_manager = document_manager
+    return handler
 
 
 # Test Data Fixtures
@@ -236,7 +239,8 @@ def sample_upload_file():
     upload_file = UploadFile(
         file=file_obj,
         filename="sample.txt",
-        size=len(content)
+        size=len(content),
+        headers={"content-type": "text/plain"}
     )
     return upload_file
 
@@ -254,7 +258,8 @@ def large_upload_file():
     upload_file = UploadFile(
         file=file_obj,
         filename="large_file.txt",
-        size=len(content)
+        size=len(content),
+        headers={"content-type": "text/plain"}
     )
     return upload_file
 

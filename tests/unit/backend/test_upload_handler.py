@@ -30,12 +30,11 @@ from app.error_handlers import ApplicationError, ErrorCategory, ErrorSeverity
 class TestUploadHandler:
     """Test suite for UploadHandler functionality."""
 
-    def test_init(self, document_manager):
+    def test_init(self, upload_handler, document_manager):
         """Test UploadHandler initialization."""
-        handler = UploadHandler()
-        assert handler.document_manager is document_manager
-        assert handler.active_tasks == {}
-        assert handler.websocket_connections == {}
+        assert upload_handler.document_manager is document_manager
+        assert upload_handler.active_tasks == {}
+        assert hasattr(upload_handler, 'websocket_manager')
 
     @pytest.mark.asyncio
     async def test_process_single_file_success(self, upload_handler, sample_upload_file):
@@ -61,24 +60,27 @@ class TestUploadHandler:
         # Create invalid file type
         invalid_file = UploadFile(
             file=BytesIO(b"invalid content"),
-            filename="test.exe"
+            filename="test.exe",
+            headers={"content-type": "application/octet-stream"}
         )
         
         task = await upload_handler.process_single_file(invalid_file)
         
         assert task.status == UploadStatus.FAILED
-        assert "not supported" in task.error_message.lower()
+        assert "unsupported file type" in task.error_message.lower()
 
     @pytest.mark.asyncio
     async def test_process_single_file_processing_error(self, upload_handler, sample_upload_file):
         """Test single file upload with processing error."""
-        # Mock document manager to raise exception
-        upload_handler.document_manager.rag_system.add_documents.side_effect = Exception("Processing failed")
+        from unittest.mock import Mock
+        # Mock document manager's create_document method to raise exception
+        upload_handler.document_manager.create_document = Mock(side_effect=Exception("Processing failed"))
         
         task = await upload_handler.process_single_file(sample_upload_file)
         
         assert task.status == UploadStatus.FAILED
-        assert "Processing failed" in task.error_message
+        # The error gets processed through error handler and becomes a user-friendly message
+        assert "issue processing your file" in task.error_message.lower()
 
     @pytest.mark.asyncio
     async def test_process_multiple_files_success(self, upload_handler):
@@ -92,7 +94,8 @@ class TestUploadHandler:
             file_obj = BytesIO(content)
             upload_file = UploadFile(
                 file=file_obj,
-                filename=f"file_{i}.txt"
+                filename=f"file_{i}.txt",
+                headers={"content-type": "text/plain"}
             )
             files.append(upload_file)
         
@@ -119,12 +122,14 @@ class TestUploadHandler:
         # Valid file
         files.append(UploadFile(
             file=BytesIO(b"valid content"),
-            filename="valid.txt"
+            filename="valid.txt",
+            headers={"content-type": "text/plain"}
         ))
         # Invalid file type
         files.append(UploadFile(
             file=BytesIO(b"invalid content"),
-            filename="invalid.exe"
+            filename="invalid.exe",
+            headers={"content-type": "application/octet-stream"}
         ))
         
         # Mock processing for valid files
@@ -230,12 +235,19 @@ class TestUploadHandler:
 
     def test_cleanup_completed_tasks(self, upload_handler):
         """Test cleanup of completed tasks."""
+        from datetime import datetime, timedelta
+        
         # Create tasks with different statuses
         completed_task = upload_handler._create_upload_task("completed.txt", 1024)
         completed_task.status = UploadStatus.COMPLETED
+        # Set an old timestamp to ensure it gets cleaned up
+        old_time = (datetime.now() - timedelta(hours=25)).isoformat()
+        completed_task.updated_at = old_time
         
         failed_task = upload_handler._create_upload_task("failed.txt", 1024)
         failed_task.status = UploadStatus.FAILED
+        # Set an old timestamp to ensure it gets cleaned up
+        failed_task.updated_at = old_time
         
         active_task = upload_handler._create_upload_task("active.txt", 1024)
         active_task.status = UploadStatus.UPLOADING
@@ -271,9 +283,9 @@ class TestUploadHandler:
         stats = upload_handler.get_statistics()
         
         assert stats["total_tasks"] == 6
-        assert stats["completed_tasks"] == 3
-        assert stats["failed_tasks"] == 2
-        assert stats["active_tasks"] == 1
+        assert stats["status_distribution"]["completed"] == 3
+        assert stats["status_distribution"]["failed"] == 2
+        assert stats["status_distribution"]["uploading"] == 1
 
     @pytest.mark.asyncio
     async def test_websocket_connection_handling(self, upload_handler, mock_websocket):
@@ -287,16 +299,16 @@ class TestUploadHandler:
         
         # Test connection handling would require more complex mocking
         # This is a basic test for the connection setup
-        upload_handler.websocket_connections[client_id] = mock_websocket
+        upload_handler.websocket_manager.active_connections[client_id] = mock_websocket
         
-        assert client_id in upload_handler.websocket_connections
-        assert upload_handler.websocket_connections[client_id] is mock_websocket
+        assert client_id in upload_handler.websocket_manager.active_connections
+        assert upload_handler.websocket_manager.active_connections[client_id] is mock_websocket
 
     @pytest.mark.asyncio
     async def test_broadcast_progress_update(self, upload_handler, mock_websocket):
         """Test broadcasting progress updates to connected clients."""
         client_id = "test_client_123"
-        upload_handler.websocket_connections[client_id] = mock_websocket
+        upload_handler.websocket_manager.active_connections[client_id] = mock_websocket
         
         # Create a task to update
         task = upload_handler._create_upload_task("test.txt", 1024)
@@ -319,7 +331,8 @@ class TestUploadHandler:
         
         valid_file = UploadFile(
             file=BytesIO(b"content"),
-            filename="test.txt"
+            filename="test.txt",
+            headers={"content-type": "text/plain"}
         )
         
         # This would be tested through process_single_file
@@ -352,13 +365,14 @@ class TestUploadHandler:
     @pytest.mark.asyncio
     async def test_error_handling_during_processing(self, upload_handler, sample_upload_file):
         """Test error handling during file processing."""
-        # Mock document manager to raise different types of errors
-        upload_handler.document_manager.rag_system.add_documents.side_effect = ApplicationError(
+        from unittest.mock import Mock
+        # Mock document manager's create_document method to raise different types of errors
+        upload_handler.document_manager.create_document = Mock(side_effect=ApplicationError(
             message="Database connection failed",
             category=ErrorCategory.DATABASE,
             severity=ErrorSeverity.HIGH,
             user_message="Database is temporarily unavailable"
-        )
+        ))
         
         task = await upload_handler.process_single_file(sample_upload_file)
         
@@ -377,7 +391,8 @@ class TestUploadHandler:
             file_obj = BytesIO(content)
             upload_file = UploadFile(
                 file=file_obj,
-                filename=f"concurrent_{i}.txt"
+                filename=f"concurrent_{i}.txt",
+                headers={"content-type": "text/plain"}
             )
             files.append(upload_file)
         
@@ -471,7 +486,8 @@ class TestUploadHandlerIntegration:
         with open(test_file_path, 'rb') as f:
             upload_file = UploadFile(
                 file=f,
-                filename="test_upload.txt"
+                filename="test_upload.txt",
+                headers={"content-type": "text/plain"}
             )
             
             # Process the file

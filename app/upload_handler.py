@@ -59,6 +59,7 @@ class UploadTask:
     status: UploadStatus = UploadStatus.PENDING
     progress: float = 0.0
     error_message: str = ""
+    status_message: str = ""
     doc_id: Optional[str] = None
     created_at: str = ""
     updated_at: str = ""
@@ -125,7 +126,7 @@ class WebSocketManager:
 
     async def send_progress_update(self, task_id: str, progress: UploadProgress):
         """Send progress update to all connected clients."""
-        message = progress.dict()
+        message = progress.model_dump()
         disconnected_clients = []
         
         with self._lock:
@@ -222,6 +223,53 @@ class UploadHandler:
         """Generate unique task ID for upload."""
         timestamp = datetime.now().isoformat()
         return hashlib.md5(f"{filename}_{timestamp}".encode()).hexdigest()[:16]
+
+    def _is_supported_file_type(self, content_type: str) -> bool:
+        """Check if file type is supported."""
+        return content_type in self.SUPPORTED_TYPES
+    
+    def _is_valid_file_size(self, file_size: int) -> bool:
+        """Check if file size is valid (not zero and within reasonable limits)."""
+        if file_size <= 0:
+            return False
+        # Maximum file size is 100MB (largest supported type is PDF at 50MB, but allow some buffer)
+        max_allowed_size = 100 * 1024 * 1024  # 100MB
+        return file_size <= max_allowed_size
+
+    def _create_upload_task(self, filename: str, file_size: int, file_type: str = "text/plain") -> UploadTask:
+        """Create a new upload task."""
+        task_id = self._generate_task_id(filename)
+        task = UploadTask(
+            task_id=task_id,
+            filename=filename,
+            file_size=file_size,
+            file_type=file_type
+        )
+        return task
+
+    def _update_task_progress(self, task_id: str, progress: float, status: UploadStatus, message: str = ""):
+        """Update task progress and status."""
+        with self._lock:
+            if task_id in self.active_tasks:
+                task = self.active_tasks[task_id]
+                task.update_status(status, progress)
+                if message:
+                    task.status_message = message
+
+    def _complete_task(self, task_id: str, doc_id: str):
+        """Mark task as completed."""
+        with self._lock:
+            if task_id in self.active_tasks:
+                task = self.active_tasks[task_id]
+                task.doc_id = doc_id
+                task.update_status(UploadStatus.COMPLETED, 100.0)
+
+    def _fail_task(self, task_id: str, error_message: str):
+        """Mark task as failed."""
+        with self._lock:
+            if task_id in self.active_tasks:
+                task = self.active_tasks[task_id]
+                task.update_status(UploadStatus.FAILED, error=error_message)
 
     async def _send_progress_update(self, task: UploadTask, message: str = ""):
         """Send progress update via WebSocket."""
@@ -420,8 +468,10 @@ class UploadHandler:
             logger.info(f"Successfully processed file {task.filename} as document {doc_id}")
             
         except (FileValidationError, ApplicationError) as e:
-            task.update_status(UploadStatus.FAILED, error=str(e))
-            await self._send_progress_update(task, f"Processing failed: {str(e)}")
+            # Use user_message for ApplicationError, otherwise use the string representation
+            error_message = e.user_message if isinstance(e, ApplicationError) else str(e)
+            task.update_status(UploadStatus.FAILED, error=error_message)
+            await self._send_progress_update(task, f"Processing failed: {error_message}")
             logger.error(f"File processing failed for {task.filename}: {e}")
             
         except Exception as e:
@@ -530,8 +580,8 @@ class UploadHandler:
 
     def cleanup_completed_tasks(self, older_than_hours: int = 24) -> int:
         """Clean up completed tasks older than specified hours."""
-        cutoff_time = datetime.now()
-        cutoff_time = cutoff_time.replace(hour=cutoff_time.hour - older_than_hours)
+        from datetime import timedelta
+        cutoff_time = datetime.now() - timedelta(hours=older_than_hours)
         cutoff_str = cutoff_time.isoformat()
         
         with self._lock:
@@ -564,7 +614,7 @@ class UploadHandler:
                         progress=task.progress,
                         doc_id=task.doc_id
                     )
-                    await websocket.send_text(json.dumps(progress.dict()))
+                    await websocket.send_text(json.dumps(progress.model_dump()))
             
             # Keep connection alive
             while True:

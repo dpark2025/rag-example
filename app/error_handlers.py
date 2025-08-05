@@ -62,6 +62,7 @@ class ApplicationError(Exception):
         error_code: Optional[str] = None
     ):
         super().__init__(message)
+        self.message = message  # Store message as an attribute for easy access
         self.category = category
         self.severity = severity
         self.recovery_action = recovery_action
