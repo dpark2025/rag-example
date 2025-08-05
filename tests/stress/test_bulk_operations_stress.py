@@ -25,13 +25,13 @@ import weakref
 
 # Import modules under test
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'app'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from document_manager import DocumentManager
-from upload_handler import UploadHandler
-from rag_backend import LocalRAGSystem
-from performance_cache import PerformanceCache
-from connection_pool import ConnectionPoolManager
+from app.document_manager import DocumentManager
+from app.upload_handler import UploadHandler
+from app.rag_backend import LocalRAGSystem
+from app.performance_cache import PerformanceCache
+from app.connection_pool import ConnectionPoolManager
 
 
 # Global fixtures for stress testing

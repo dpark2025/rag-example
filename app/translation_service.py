@@ -21,8 +21,8 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 
 # Import our components
-from language_detection import get_language_detector, LanguageDetectionResult
-from i18n_manager import get_i18n_manager
+from .language_detection import get_language_detector, LanguageDetectionResult
+from .i18n_manager import get_i18n_manager
 
 logger = logging.getLogger(__name__)
 

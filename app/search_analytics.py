@@ -27,8 +27,8 @@ import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
-from performance_cache import get_rag_query_cache
-from error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity
+from .performance_cache import get_rag_query_cache
+from .error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity
 
 logger = logging.getLogger(__name__)
 

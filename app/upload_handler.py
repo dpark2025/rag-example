@@ -23,12 +23,12 @@ import threading
 from fastapi import UploadFile, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 
-from document_manager import get_document_manager, DocumentMetadata
-from document_processing_tracker import processing_tracker, ProcessingStatus
-from pdf_processor import pdf_processor, ExtractionMethod
-from document_intelligence import document_intelligence, DocumentType
-from error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity, RecoveryAction
-from performance_monitor import get_performance_monitor
+from .document_manager import get_document_manager, DocumentMetadata
+from .document_processing_tracker import processing_tracker, ProcessingStatus
+from .pdf_processor import pdf_processor, ExtractionMethod
+from .document_intelligence import document_intelligence, DocumentType
+from .error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity, RecoveryAction
+from .performance_monitor import get_performance_monitor
 
 # Configure logging
 logger = logging.getLogger(__name__)

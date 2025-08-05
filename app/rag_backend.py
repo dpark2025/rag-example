@@ -12,9 +12,9 @@ from functools import wraps
 import asyncio
 
 # Performance optimizations
-from performance_cache import get_rag_query_cache, get_embedding_cache, get_document_cache
-from connection_pool import get_pool_manager
-from performance_monitor import get_performance_monitor, record_rag_query_time, record_cache_hit_rate, record_memory_usage
+from .performance_cache import get_rag_query_cache, get_embedding_cache, get_document_cache
+from .connection_pool import get_pool_manager
+from .performance_monitor import get_performance_monitor, record_rag_query_time, record_cache_hit_rate, record_memory_usage
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

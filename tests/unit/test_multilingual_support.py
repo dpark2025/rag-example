@@ -18,7 +18,7 @@ import json
 # Import modules to test
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'app'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from app.i18n_manager import I18nManager, get_i18n_manager, LanguageConfig
 from app.language_detection import LanguageDetector, get_language_detector, LanguageDetectionResult

@@ -8,7 +8,7 @@ import asyncio
 import json
 import logging
 from typing import Any, Dict, List
-from rag_backend import get_rag_system
+from .rag_backend import get_rag_system
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

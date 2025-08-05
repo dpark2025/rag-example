@@ -26,10 +26,10 @@ from sentence_transformers import SentenceTransformer, util
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-from rag_backend import get_rag_system
-from document_manager import DocumentManager
-from performance_cache import get_rag_query_cache
-from error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity
+from .rag_backend import get_rag_system
+from .document_manager import DocumentManager
+from .performance_cache import get_rag_query_cache
+from .error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity
 
 logger = logging.getLogger(__name__)
 

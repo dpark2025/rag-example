@@ -14,12 +14,12 @@ import sys
 from pathlib import Path
 from datetime import datetime
 
-# Add app directory to Python path
-sys.path.append(str(Path(__file__).parent.parent.parent / "app"))
+# Add project root to Python path  
+sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from export_manager import get_export_manager, ExportFormat, ExportType, ExportOptions, ExportRequest
-from sharing_service import get_sharing_service, ShareRequest, ShareType, AccessLevel
-from document_manager import get_document_manager
+from app.export_manager import get_export_manager, ExportFormat, ExportType, ExportOptions, ExportRequest
+from app.sharing_service import get_sharing_service, ShareRequest, ShareType, AccessLevel
+from app.document_manager import get_document_manager
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

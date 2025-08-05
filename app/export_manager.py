@@ -32,8 +32,8 @@ from reportlab.platypus.flowables import HRFlowable
 import markdown
 from bs4 import BeautifulSoup
 
-from document_manager import get_document_manager, DocumentMetadata
-from error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity, RecoveryAction
+from .document_manager import get_document_manager, DocumentMetadata
+from .error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity, RecoveryAction
 
 # Configure logging
 logger = logging.getLogger(__name__)

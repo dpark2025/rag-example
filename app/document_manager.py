@@ -19,9 +19,9 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 
 from pydantic import BaseModel, Field
-from rag_backend import get_rag_system
-from error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity, RecoveryAction
-from performance_cache import get_document_cache
+from .rag_backend import get_rag_system
+from .error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity, RecoveryAction
+from .performance_cache import get_document_cache
 
 # Configure logging
 logger = logging.getLogger(__name__)

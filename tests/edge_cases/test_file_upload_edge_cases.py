@@ -21,7 +21,7 @@ from typing import List, Dict, Any
 
 # Import modules under test
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'app'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from upload_handler import UploadHandler, UploadTask, UploadStatus
 from document_manager import DocumentManager

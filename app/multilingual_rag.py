@@ -17,9 +17,9 @@ import numpy as np
 from functools import lru_cache
 
 # Import our multilingual components
-from language_detection import get_language_detector, LanguageDetectionResult
-from i18n_manager import get_i18n_manager, I18nManager
-from rag_backend import get_rag_system, LocalRAGSystem
+from .language_detection import get_language_detector, LanguageDetectionResult
+from .i18n_manager import get_i18n_manager, I18nManager
+from .rag_backend import get_rag_system, LocalRAGSystem
 
 logger = logging.getLogger(__name__)
 

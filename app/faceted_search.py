@@ -24,13 +24,13 @@ from enum import Enum
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 
-from rag_backend import get_rag_system
-from document_manager import DocumentManager
-from search_engine import get_search_engine, SearchResult
-from document_analytics import get_analytics_engine
-from intelligent_tagging import get_tagging_system
-from performance_cache import get_rag_query_cache
-from error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity
+from .rag_backend import get_rag_system
+from .document_manager import DocumentManager
+from .search_engine import get_search_engine, SearchResult
+from .document_analytics import get_analytics_engine
+from .intelligent_tagging import get_tagging_system
+from .performance_cache import get_rag_query_cache
+from .error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity
 
 logger = logging.getLogger(__name__)
 

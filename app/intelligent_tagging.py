@@ -29,11 +29,11 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.linear_model import LogisticRegression
 from sentence_transformers import SentenceTransformer, util
 
-from rag_backend import get_rag_system
-from document_manager import DocumentManager
-from document_analytics import get_analytics_engine
-from performance_cache import get_document_cache
-from error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity
+from .rag_backend import get_rag_system
+from .document_manager import DocumentManager
+from .document_analytics import get_analytics_engine
+from .performance_cache import get_document_cache
+from .error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity
 
 logger = logging.getLogger(__name__)
 

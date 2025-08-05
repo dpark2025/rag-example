@@ -20,12 +20,12 @@ from fastapi.testclient import TestClient
 
 # Import application components for testing
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'app'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from rag_backend import LocalRAGSystem, LocalLLMClient
-from document_manager import DocumentManager, DocumentMetadata, DocumentFilter
-from upload_handler import UploadHandler, UploadTask, UploadStatus
-from error_handlers import ApplicationError, ErrorCategory, ErrorSeverity
+from app.rag_backend import LocalRAGSystem, LocalLLMClient
+from app.document_manager import DocumentManager, DocumentMetadata, DocumentFilter
+from app.upload_handler import UploadHandler, UploadTask, UploadStatus
+from app.error_handlers import ApplicationError, ErrorCategory, ErrorSeverity
 
 
 @pytest.fixture(scope="session")

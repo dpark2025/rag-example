@@ -18,11 +18,11 @@ from pydantic import BaseModel, Field
 from fastapi import FastAPI, HTTPException, Query, Body, Depends
 from fastapi.responses import JSONResponse
 
-from search_engine import get_search_engine, SearchResult, QueryIntent
-from document_analytics import get_analytics_engine, DocumentInsight, CollectionInsights
-from intelligent_tagging import get_tagging_system, DocumentTags, Tag, TagSuggestion
-from faceted_search import get_faceted_search_engine, FilterCriteria, FilterType, FacetedSearchResult
-from search_analytics import (
+from .search_engine import get_search_engine, SearchResult, QueryIntent
+from .document_analytics import get_analytics_engine, DocumentInsight, CollectionInsights
+from .intelligent_tagging import get_tagging_system, DocumentTags, Tag, TagSuggestion
+from .faceted_search import get_faceted_search_engine, FilterCriteria, FilterType, FacetedSearchResult
+from .search_analytics import (
     get_search_analytics_engine, 
     EventType, 
     UserEvent, 
@@ -30,7 +30,7 @@ from search_analytics import (
     QueryAnalysis,
     UserBehaviorProfile
 )
-from error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity
+from .error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity
 
 logger = logging.getLogger(__name__)
 

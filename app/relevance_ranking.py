@@ -29,12 +29,12 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import ndcg_score, mean_squared_error
 from sklearn.model_selection import train_test_split
 
-from search_engine import SearchResult, get_search_engine
-from search_analytics import get_search_analytics_engine, EventType
-from document_analytics import get_analytics_engine
-from intelligent_tagging import get_tagging_system
-from performance_cache import get_rag_query_cache
-from error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity
+from .search_engine import SearchResult, get_search_engine
+from .search_analytics import get_search_analytics_engine, EventType
+from .document_analytics import get_analytics_engine
+from .intelligent_tagging import get_tagging_system
+from .performance_cache import get_rag_query_cache
+from .error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity
 
 logger = logging.getLogger(__name__)
 

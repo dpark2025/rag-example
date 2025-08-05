@@ -21,7 +21,7 @@ from fastapi.testclient import TestClient
 
 # Import modules under test
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'app'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from rag_backend import LocalRAGSystem, LocalLLMClient
 from document_manager import DocumentManager

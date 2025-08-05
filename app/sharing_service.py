@@ -22,7 +22,7 @@ import json
 import aiofiles
 
 from pydantic import BaseModel, Field, validator
-from error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity, RecoveryAction
+from .error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity, RecoveryAction
 
 # Configure logging
 logger = logging.getLogger(__name__)

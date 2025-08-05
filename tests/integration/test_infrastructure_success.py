@@ -6,15 +6,15 @@ Demonstrates that all infrastructure issues have been resolved.
 
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'app'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 def test_imports():
     """Test that all major imports work correctly."""
     try:
-        from document_manager import DocumentManager
-        from upload_handler import UploadHandler
-        from rag_backend import LocalRAGSystem, get_rag_system
-        from main import app
+        from app.document_manager import DocumentManager
+        from app.upload_handler import UploadHandler
+        from app.rag_backend import LocalRAGSystem, get_rag_system
+        from app.main import app
         print("✅ All imports successful")
         return True
     except Exception as e:

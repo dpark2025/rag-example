@@ -29,16 +29,16 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 
 from pydantic import BaseModel, Field
-from rag_backend import get_rag_system
-from document_manager import get_document_manager, DocumentMetadata
-from error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity, RecoveryAction
-from performance_cache import get_document_cache
-from versioning_types import (
+from .rag_backend import get_rag_system
+from .document_manager import get_document_manager, DocumentMetadata
+from .error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity, RecoveryAction
+from .performance_cache import get_document_cache
+from .versioning_types import (
     DocumentVersion, VersionStatus, VersionOperation, ConflictResolution,
     VersionDiff, RollbackSafetyCheck, VersionConflict, ValidationResult,
     VersionQuery, BulkVersionOperation
 )
-from versioning_validators import get_version_validator
+from .versioning_validators import get_version_validator
 
 # Configure logging
 logger = logging.getLogger(__name__)

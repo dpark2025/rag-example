@@ -16,8 +16,8 @@ from typing import List, Dict, Optional, Tuple, Any
 from dataclasses import dataclass
 from enum import Enum
 
-from versioning_types import DocumentVersion, VersionOperation, ConflictResolution, VersionStatus, ValidationResult
-from error_handlers import ApplicationError, ErrorCategory, ErrorSeverity, RecoveryAction
+from .versioning_types import DocumentVersion, VersionOperation, ConflictResolution, VersionStatus, ValidationResult
+from .error_handlers import ApplicationError, ErrorCategory, ErrorSeverity, RecoveryAction
 
 logger = logging.getLogger(__name__)
 

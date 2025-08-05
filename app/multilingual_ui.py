@@ -14,9 +14,9 @@ from functools import wraps
 import json
 
 # Import our multilingual components
-from i18n_manager import get_i18n_manager, I18nManager
-from language_detection import get_language_detector
-from translation_service import get_translation_service, TranslationRequest
+from .i18n_manager import get_i18n_manager, I18nManager
+from .language_detection import get_language_detector
+from .translation_service import get_translation_service, TranslationRequest
 
 logger = logging.getLogger(__name__)
 

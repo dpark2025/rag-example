@@ -17,7 +17,7 @@ from typing import List, Dict, Any
 # Import modules under test
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'app'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
 from document_manager import DocumentManager, DocumentMetadata, DocumentFilter, BulkOperationResult
 from rag_backend import LocalRAGSystem

@@ -13,17 +13,17 @@ import logging
 from datetime import datetime
 import hashlib
 import asyncio
-from rag_backend import get_rag_system
-from document_processing_tracker import processing_tracker, ProcessingStatus
-from pdf_processor import pdf_processor, ExtractionMethod
-from document_intelligence import document_intelligence, DocumentType
-from error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity, RecoveryAction, get_error_stats
-from health_monitor import health_monitor, HealthStatus
-from document_manager import get_document_manager, DocumentFilter, BulkOperationResult
-from upload_handler import get_upload_handler, BulkUploadResult, UploadStatus
-from document_versioning import get_document_versioning, DocumentVersion, VersionDiff, VersionConflict, RollbackSafetyCheck, VersionOperation, ConflictResolution
-from export_manager import get_export_manager, ExportRequest, ExportResult, BulkExportResult, ExportFormat, ExportType, ExportOptions
-from sharing_service import get_sharing_service, ShareRequest, ShareLink, AccessLevel, ShareType, CollaborationInvite
+from .rag_backend import get_rag_system
+from .document_processing_tracker import processing_tracker, ProcessingStatus
+from .pdf_processor import pdf_processor, ExtractionMethod
+from .document_intelligence import document_intelligence, DocumentType
+from .error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity, RecoveryAction, get_error_stats
+from .health_monitor import health_monitor, HealthStatus
+from .document_manager import get_document_manager, DocumentFilter, BulkOperationResult
+from .upload_handler import get_upload_handler, BulkUploadResult, UploadStatus
+from .document_versioning import get_document_versioning, DocumentVersion, VersionDiff, VersionConflict, RollbackSafetyCheck, VersionOperation, ConflictResolution
+from .export_manager import get_export_manager, ExportRequest, ExportResult, BulkExportResult, ExportFormat, ExportType, ExportOptions
+from .sharing_service import get_sharing_service, ShareRequest, ShareLink, AccessLevel, ShareType, CollaborationInvite
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
