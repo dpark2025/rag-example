@@ -23,9 +23,9 @@ from typing import List, Dict, Any
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from upload_handler import UploadHandler, UploadTask, UploadStatus
-from document_manager import DocumentManager
-from error_handlers import ApplicationError, ErrorCategory, ErrorSeverity
+from app.upload_handler import UploadHandler, UploadTask, UploadStatus
+from app.document_manager import DocumentManager
+from app.error_handlers import ApplicationError, ErrorCategory, ErrorSeverity
 
 
 @pytest.mark.unit

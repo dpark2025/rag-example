@@ -21,10 +21,10 @@ import numpy as np
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from rag_backend import LocalRAGSystem, LocalLLMClient
-from document_manager import DocumentManager
-from upload_handler import UploadHandler
-from main import app
+from app.rag_backend import LocalRAGSystem, LocalLLMClient
+from app.document_manager import DocumentManager
+from app.upload_handler import UploadHandler
+from app.main import app
 from fastapi.testclient import TestClient
 from fastapi import UploadFile
 from io import BytesIO

@@ -1,301 +1,353 @@
-#!/usr/bin/env python3
 """
-Document Management Testing Script
-Tests CRUD operations, bulk operations, and filtering
+Unit tests for document management functionality.
+
+Tests CRUD operations, bulk operations, filtering, and document lifecycle management.
+Focuses on testing DocumentManager class with proper mocking of dependencies.
+
+Authored by: QA/Test Engineer
+Date: 2025-08-05
 """
 
-import requests
-import json
-import time
+import pytest
 import tempfile
 import os
+from unittest.mock import Mock, patch, MagicMock
+from io import BytesIO
+from typing import List, Dict, Any
 
-class DocumentManagementTester:
-    def __init__(self, base_url="http://localhost:8000"):
-        self.base_url = base_url
-        self.results = []
-        
-    def log_result(self, test_name: str, success: bool, details: str, duration: float = 0):
-        status = "✅ PASS" if success else "❌ FAIL"
-        print(f"{status} {test_name} ({duration:.3f}s)")
-        if not success or details:
-            print(f"   {details}")
-        
-        self.results.append({
-            "test": test_name,
-            "success": success,
-            "details": details,
-            "duration": duration
-        })
-    
-    def test_bulk_upload(self):
-        """Test bulk file upload"""
-        try:
-            start_time = time.time()
-            
-            # Create multiple test files
-            test_files = [
-                ("doc1.txt", "This is document 1 for bulk upload testing. Contains financial data."),
-                ("doc2.txt", "This is document 2 for bulk upload testing. Contains technical specifications."),
-                ("doc3.txt", "This is document 3 for bulk upload testing. Contains meeting notes.")
-            ]
-            
-            files = []
-            temp_files = []
-            
-            for filename, content in test_files:
-                temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False)
-                temp_file.write(content)
-                temp_file.close()
-                temp_files.append(temp_file.name)
-                files.append(('files', (filename, open(temp_file.name, 'rb'), 'text/plain')))
-            
-            response = requests.post(f"{self.base_url}/api/v1/documents/bulk-upload", files=files, timeout=30)
-            duration = time.time() - start_time
-            
-            # Cleanup
-            for f in files:
-                f[1][1].close()
-            for temp_file in temp_files:
-                os.unlink(temp_file)
-            
-            if response.status_code == 200:
-                data = response.json()
-                success_count = data.get("successful_uploads", 0)
-                self.log_result("Bulk Upload", success_count >= 3, 
-                              f"Uploaded {success_count}/3 files", duration)
-                return success_count >= 3
-            else:
-                self.log_result("Bulk Upload", False, 
-                              f"HTTP {response.status_code}: {response.text}", duration)
-                return False
-                
-        except Exception as e:
-            self.log_result("Bulk Upload", False, f"Error: {e}", 0)
-            return False
-    
-    def test_document_filtering(self):
-        """Test document filtering capabilities"""
-        try:
-            start_time = time.time()
-            
-            # Test filtering by file type
-            response = requests.get(f"{self.base_url}/api/v1/documents?file_type=txt&limit=10", timeout=10)
-            
-            if response.status_code == 200:
-                data = response.json()
-                documents = data.get("documents", [])
-                
-                # Check that all returned documents are txt files
-                all_txt = all(doc.get("file_type") == "txt" for doc in documents)
-                
-                duration = time.time() - start_time
-                self.log_result("Document Filtering", all_txt and len(documents) > 0, 
-                              f"Found {len(documents)} txt files, all correct type: {all_txt}", duration)
-                return all_txt and len(documents) > 0
-            else:
-                duration = time.time() - start_time
-                self.log_result("Document Filtering", False, 
-                              f"HTTP {response.status_code}", duration)
-                return False
-                
-        except Exception as e:
-            self.log_result("Document Filtering", False, f"Error: {e}", 0)
-            return False
-    
-    def test_document_deletion(self):
-        """Test single document deletion"""
-        try:
-            start_time = time.time()
-            
-            # First, get a document to delete
-            response = requests.get(f"{self.base_url}/api/v1/documents?limit=1", timeout=10)
-            
-            if response.status_code != 200:
-                self.log_result("Document Deletion", False, "Cannot get documents list", 0)
-                return False
-            
-            data = response.json()
-            documents = data.get("documents", [])
-            
-            if not documents:
-                self.log_result("Document Deletion", False, "No documents to delete", 0)
-                return False
-            
-            doc_id = documents[0]["doc_id"]
-            
-            # Delete the document
-            delete_response = requests.delete(f"{self.base_url}/api/v1/documents/{doc_id}", timeout=10)
-            duration = time.time() - start_time
-            
-            if delete_response.status_code == 200:
-                delete_data = delete_response.json()
-                chunks_deleted = delete_data.get("deleted_chunks", 0)
-                
-                self.log_result("Document Deletion", chunks_deleted > 0, 
-                              f"Deleted doc {doc_id}, {chunks_deleted} chunks removed", duration)
-                return chunks_deleted > 0
-            else:
-                self.log_result("Document Deletion", False, 
-                              f"HTTP {delete_response.status_code}: {delete_response.text}", duration)
-                return False
-                
-        except Exception as e:
-            self.log_result("Document Deletion", False, f"Error: {e}", 0)
-            return False
-    
-    def test_bulk_deletion(self):
-        """Test bulk document deletion"""
-        try:
-            start_time = time.time()
-            
-            # Get multiple documents to delete
-            response = requests.get(f"{self.base_url}/api/v1/documents?limit=3", timeout=10)
-            
-            if response.status_code != 200:
-                self.log_result("Bulk Deletion", False, "Cannot get documents list", 0)
-                return False
-            
-            data = response.json()
-            documents = data.get("documents", [])
-            
-            if len(documents) < 2:
-                self.log_result("Bulk Deletion", False, "Need at least 2 documents for bulk delete", 0)
-                return False
-            
-            doc_ids = [doc["doc_id"] for doc in documents[:2]]
-            
-            # Bulk delete
-            bulk_delete_payload = {"doc_ids": doc_ids}
-            delete_response = requests.delete(f"{self.base_url}/api/v1/documents/bulk", 
-                                            json=bulk_delete_payload, timeout=10)
-            duration = time.time() - start_time
-            
-            if delete_response.status_code == 200:
-                delete_data = delete_response.json()
-                success_count = delete_data.get("success_count", 0)
-                total_chunks = delete_data.get("total_chunks_deleted", 0)
-                
-                self.log_result("Bulk Deletion", success_count >= 2, 
-                              f"Deleted {success_count} docs, {total_chunks} chunks", duration)
-                return success_count >= 2
-            else:
-                self.log_result("Bulk Deletion", False, 
-                              f"HTTP {delete_response.status_code}: {delete_response.text}", duration)
-                return False
-                
-        except Exception as e:
-            self.log_result("Bulk Deletion", False, f"Error: {e}", 0)
-            return False
-    
-    def test_storage_stats(self):
-        """Test storage statistics endpoint"""
-        try:
-            start_time = time.time()
-            response = requests.get(f"{self.base_url}/api/v1/documents/stats", timeout=10)
-            duration = time.time() - start_time
-            
-            if response.status_code == 200:
-                data = response.json()
-                
-                required_fields = ["total_documents", "total_chunks", "total_size_bytes"]
-                has_all_fields = all(field in data for field in required_fields)
-                
-                if has_all_fields:
-                    stats_summary = f"Docs: {data['total_documents']}, Chunks: {data['total_chunks']}, Size: {data['total_size_bytes']} bytes"
-                    self.log_result("Storage Stats", True, stats_summary, duration)
-                    return True
-                else:
-                    self.log_result("Storage Stats", False, 
-                                  f"Missing fields in response: {required_fields}", duration)
-                    return False
-            else:
-                self.log_result("Storage Stats", False, 
-                              f"HTTP {response.status_code}", duration)
-                return False
-                
-        except Exception as e:
-            self.log_result("Storage Stats", False, f"Error: {e}", 0)
-            return False
-    
-    def test_pagination(self):
-        """Test document listing pagination"""
-        try:
-            start_time = time.time()
-            
-            # Get first page
-            response1 = requests.get(f"{self.base_url}/api/v1/documents?limit=5&offset=0", timeout=10)
-            
-            # Get second page
-            response2 = requests.get(f"{self.base_url}/api/v1/documents?limit=5&offset=5", timeout=10)
-            
-            duration = time.time() - start_time
-            
-            if response1.status_code == 200 and response2.status_code == 200:
-                data1 = response1.json()
-                data2 = response2.json()
-                
-                docs1 = data1.get("documents", [])
-                docs2 = data2.get("documents", [])
-                
-                # Check that we got different documents
-                ids1 = set(doc["doc_id"] for doc in docs1)
-                ids2 = set(doc["doc_id"] for doc in docs2)
-                
-                no_overlap = len(ids1.intersection(ids2)) == 0
-                
-                self.log_result("Pagination", no_overlap and len(docs1) > 0, 
-                              f"Page 1: {len(docs1)} docs, Page 2: {len(docs2)} docs, No overlap: {no_overlap}", 
-                              duration)
-                return no_overlap and len(docs1) > 0
-            else:
-                self.log_result("Pagination", False, 
-                              f"HTTP errors: {response1.status_code}, {response2.status_code}", duration)
-                return False
-                
-        except Exception as e:
-            self.log_result("Pagination", False, f"Error: {e}", 0)
-            return False
-    
-    def run_all_tests(self):
-        """Run all document management tests"""
-        print("🗂️  Starting Document Management Testing\n")
-        
-        # Run tests
-        self.test_bulk_upload()
-        self.test_document_filtering()
-        self.test_storage_stats()
-        self.test_pagination()
-        self.test_document_deletion()
-        self.test_bulk_deletion()
-        
-        # Summary
-        self.print_summary()
-    
-    def print_summary(self):
-        """Print test summary"""
-        print("\n" + "="*50)
-        print("📊 DOCUMENT MANAGEMENT TEST SUMMARY")
-        print("="*50)
-        
-        passed = sum(1 for result in self.results if result["success"])
-        total = len(self.results)
-        pass_rate = (passed / total * 100) if total > 0 else 0
-        
-        print(f"Tests Run: {total}")
-        print(f"Passed: {passed}")
-        print(f"Failed: {total - passed}")
-        print(f"Pass Rate: {pass_rate:.1f}%")
-        
-        if pass_rate >= 90:
-            print("\n🎉 DOCUMENT MANAGEMENT: EXCELLENT")
-        elif pass_rate >= 75:
-            print("\n✅ DOCUMENT MANAGEMENT: GOOD")
-        elif pass_rate >= 60:
-            print("\n⚠️  DOCUMENT MANAGEMENT: NEEDS IMPROVEMENT")
-        else:
-            print("\n❌ DOCUMENT MANAGEMENT: CRITICAL ISSUES")
+# Import modules under test
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
-if __name__ == "__main__":
-    tester = DocumentManagementTester()
-    tester.run_all_tests()
+from app.document_manager import DocumentManager, DocumentMetadata, DocumentFilter
+from app.rag_backend import LocalRAGSystem
+
+@pytest.fixture
+def document_manager_with_mock_rag():
+    """Provide DocumentManager with mocked RAG system."""
+    mock_rag = Mock(spec=LocalRAGSystem)
+    mock_rag.add_documents.return_value = "Successfully added 1 documents (3 chunks)"
+    mock_rag.collection = Mock()
+    mock_rag.collection.count.return_value = 5
+    
+    manager = DocumentManager()
+    manager.rag_system = mock_rag
+    return manager
+
+
+@pytest.fixture
+def sample_documents_data():
+    """Sample document data for testing."""
+    return [
+        {
+            "title": "Financial Document",
+            "content": "This is document 1 for bulk upload testing. Contains financial data.",
+            "source": "doc1.txt",
+            "file_type": "txt",
+            "doc_id": "doc1"
+        },
+        {
+            "title": "Technical Specifications", 
+            "content": "This is document 2 for bulk upload testing. Contains technical specifications.",
+            "source": "doc2.txt",
+            "file_type": "txt",
+            "doc_id": "doc2"
+        },
+        {
+            "title": "Meeting Notes",
+            "content": "This is document 3 for bulk upload testing. Contains meeting notes.",
+            "source": "doc3.txt",
+            "file_type": "txt", 
+            "doc_id": "doc3"
+        }
+    ]
+
+
+@pytest.mark.unit
+class TestDocumentManager:
+    """Unit tests for document manager functionality."""
+
+    def test_document_manager_initialization(self):
+        """Test DocumentManager can be initialized."""
+        manager = DocumentManager()
+        assert manager is not None
+        
+    def test_document_metadata_creation(self, sample_documents_data):
+        """Test DocumentMetadata can be created with sample data."""
+        document = sample_documents_data[0]
+        
+        metadata = DocumentMetadata(
+            doc_id=document["doc_id"],
+            title=document["title"],
+            file_type=document["file_type"],
+            file_size=len(document["content"]),
+            upload_timestamp="2025-08-05T10:00:00Z",
+            chunk_count=3,
+            status="ready",
+            last_modified="2025-08-05T10:00:00Z"
+        )
+        
+        # Verify metadata creation
+        assert metadata.doc_id == document["doc_id"]
+        assert metadata.title == document["title"]
+        assert metadata.file_type == document["file_type"]
+        assert metadata.status == "ready"
+
+    def test_document_filter_creation(self):
+        """Test DocumentFilter can be created."""
+        filter_obj = DocumentFilter(file_type="txt")
+        assert filter_obj.file_type == "txt"
+        
+    def test_document_manager_has_expected_methods(self):
+        """Test DocumentManager has expected async methods."""
+        manager = DocumentManager()
+        
+        # Check that expected methods exist
+        assert hasattr(manager, 'create_document')
+        assert hasattr(manager, 'get_document')
+        assert hasattr(manager, 'list_documents')
+        assert hasattr(manager, 'update_document_metadata')
+        
+    def test_sample_documents_data_structure(self, sample_documents_data):
+        """Test that sample documents have expected structure."""
+        assert len(sample_documents_data) == 3
+        
+        for doc in sample_documents_data:
+            assert "doc_id" in doc
+            assert "title" in doc
+            assert "content" in doc
+            assert "file_type" in doc
+            assert "source" in doc
+@pytest.mark.unit
+class TestDocumentListing:
+    """Unit tests for document listing and filtering functionality."""
+
+    def test_list_all_documents(self, document_manager_with_mock_rag):
+        """Test listing all documents."""
+        manager = document_manager_with_mock_rag
+        
+        # Mock ChromaDB response with multiple documents
+        mock_query_result = {
+            "ids": [["doc1", "doc2", "doc3"]],
+            "metadatas": [[
+                {"title": "Document 1", "file_type": "txt", "source": "doc1.txt"},
+                {"title": "Document 2", "file_type": "pdf", "source": "doc2.pdf"},
+                {"title": "Document 3", "file_type": "txt", "source": "doc3.txt"}
+            ]],
+            "documents": [["Content 1", "Content 2", "Content 3"]]
+        }
+        manager.rag_system.collection.get.return_value = mock_query_result
+        
+        documents = manager.list_documents()
+        
+        # Verify document listing
+        assert len(documents) == 3
+        assert documents[0]["doc_id"] == "doc1"
+        assert documents[1]["file_type"] == "pdf"
+        assert documents[2]["title"] == "Document 3"
+
+    def test_filter_documents_by_type(self, document_manager_with_mock_rag):
+        """Test filtering documents by file type."""
+        manager = document_manager_with_mock_rag
+        
+        # Mock ChromaDB response with filtered results
+        mock_query_result = {
+            "ids": [["doc1", "doc3"]],
+            "metadatas": [[
+                {"title": "Document 1", "file_type": "txt", "source": "doc1.txt"},
+                {"title": "Document 3", "file_type": "txt", "source": "doc3.txt"}
+            ]],
+            "documents": [["Content 1", "Content 3"]]
+        }
+        manager.rag_system.collection.get.return_value = mock_query_result
+        
+        filter_obj = DocumentFilter(file_type="txt")
+        documents = manager.list_documents(filter_obj)
+        
+        # Verify filtering worked
+        assert len(documents) == 2
+        assert all(doc["file_type"] == "txt" for doc in documents)
+
+    def test_pagination(self, document_manager_with_mock_rag):
+        """Test document pagination."""
+        manager = document_manager_with_mock_rag
+        
+        # Mock first page
+        manager.rag_system.collection.get.return_value = {
+            "ids": [["doc1", "doc2"]],
+            "metadatas": [[
+                {"title": "Document 1", "file_type": "txt", "source": "doc1.txt"},
+                {"title": "Document 2", "file_type": "txt", "source": "doc2.txt"}
+            ]],
+            "documents": [["Content 1", "Content 2"]]
+        }
+        
+        documents = manager.list_documents(limit=2, offset=0)
+        
+        # Verify pagination
+        assert len(documents) <= 2
+        manager.rag_system.collection.get.assert_called_once()
+
+
+@pytest.mark.unit
+class TestDocumentDeletion:
+    """Unit tests for document deletion functionality."""
+
+    def test_delete_single_document(self, document_manager_with_mock_rag):
+        """Test deleting a single document."""
+        manager = document_manager_with_mock_rag
+        doc_id = "test_doc_1"
+        
+        # Mock ChromaDB delete operation
+        manager.rag_system.collection.delete.return_value = None
+        manager.rag_system.collection.get.return_value = {
+            "ids": [[doc_id]],
+            "metadatas": [[{"title": "Test Doc", "chunk_count": 3}]],
+            "documents": [["Test content"]]
+        }
+        
+        result = manager.delete_document(doc_id)
+        
+        # Verify deletion
+        assert result["success"] is True
+        assert result["deleted_chunks"] > 0
+        manager.rag_system.collection.delete.assert_called_once()
+
+    def test_delete_nonexistent_document(self, document_manager_with_mock_rag):
+        """Test deleting a non-existent document."""
+        manager = document_manager_with_mock_rag
+        
+        # Mock empty response
+        manager.rag_system.collection.get.return_value = {
+            "ids": [[]],
+            "metadatas": [[]],
+            "documents": [[]]
+        }
+        
+        result = manager.delete_document("nonexistent_id")
+        
+        # Should handle gracefully
+        assert result["success"] is False
+        assert "not found" in result["message"].lower()
+
+    def test_bulk_delete_documents(self, document_manager_with_mock_rag):
+        """Test bulk document deletion."""
+        manager = document_manager_with_mock_rag
+        doc_ids = ["doc1", "doc2", "doc3"]
+        
+        # Mock successful bulk delete
+        manager.rag_system.collection.delete.return_value = None
+        manager.rag_system.collection.get.return_value = {
+            "ids": [doc_ids],
+            "metadatas": [[
+                {"title": "Doc 1", "chunk_count": 2},
+                {"title": "Doc 2", "chunk_count": 3},
+                {"title": "Doc 3", "chunk_count": 1}
+            ]],
+            "documents": [["Content 1", "Content 2", "Content 3"]]
+        }
+        
+        result = manager.delete_documents(doc_ids)
+        
+        # Verify bulk deletion
+        assert result["success"] is True
+        assert result["success_count"] == 3
+        assert result["total_chunks_deleted"] == 6
+        manager.rag_system.collection.delete.assert_called_once()
+
+    def test_bulk_delete_with_failures(self, document_manager_with_mock_rag):
+        """Test bulk deletion with some failures."""
+        manager = document_manager_with_mock_rag
+        doc_ids = ["doc1", "doc2", "nonexistent"]
+        
+        # Mock partial success
+        manager.rag_system.collection.get.return_value = {
+            "ids": [["doc1", "doc2"]],  # Only 2 found
+            "metadatas": [[
+                {"title": "Doc 1", "chunk_count": 2},
+                {"title": "Doc 2", "chunk_count": 3}
+            ]],
+            "documents": [["Content 1", "Content 2"]]
+        }
+        manager.rag_system.collection.delete.return_value = None
+        
+        result = manager.delete_documents(doc_ids)
+        
+        # Should handle partial failures
+        assert result["success"] is True  # Partial success still counts
+        assert result["success_count"] == 2
+        assert result["failed_count"] == 1
+
+
+@pytest.mark.unit 
+class TestDocumentStats:
+    """Unit tests for document statistics functionality."""
+
+    def test_get_storage_stats(self, document_manager_with_mock_rag):
+        """Test getting storage statistics."""
+        manager = document_manager_with_mock_rag
+        
+        # Mock collection stats
+        manager.rag_system.collection.count.return_value = 10
+        manager.rag_system.collection.get.return_value = {
+            "ids": [["doc1", "doc2", "doc3"]],
+            "metadatas": [[
+                {"file_size": 1024, "chunk_count": 3},
+                {"file_size": 2048, "chunk_count": 5},
+                {"file_size": 512, "chunk_count": 2}
+            ]],
+            "documents": [["Content 1", "Content 2", "Content 3"]]
+        }
+        
+        stats = manager.get_storage_stats()
+        
+        # Verify statistics
+        assert stats["total_documents"] == 3
+        assert stats["total_chunks"] == 10  # From collection.count()
+        assert stats["total_size_bytes"] == 3584  # Sum of file sizes
+        assert "storage_usage" in stats
+
+    def test_get_document_count(self, document_manager_with_mock_rag):
+        """Test getting document count."""
+        manager = document_manager_with_mock_rag
+        
+        # Mock count response
+        manager.rag_system.collection.count.return_value = 42
+        
+        count = manager.get_document_count()
+        
+        assert count == 42
+        manager.rag_system.collection.count.assert_called_once()
+
+
+@pytest.mark.integration
+class TestDocumentManagementIntegration:
+    """Integration tests for complete document management workflows."""
+
+    def test_complete_document_lifecycle(self, document_manager_with_mock_rag, sample_documents_data):
+        """Test complete document lifecycle: add, list, delete."""
+        manager = document_manager_with_mock_rag
+        
+        # Add documents
+        add_result = manager.add_documents(sample_documents_data)
+        assert add_result["success"] is True
+        
+        # Mock document listing after addition
+        manager.rag_system.collection.get.return_value = {
+            "ids": [["doc1", "doc2", "doc3"]],
+            "metadatas": [[
+                {"title": "Financial Document", "file_type": "txt"},
+                {"title": "Technical Specifications", "file_type": "txt"},
+                {"title": "Meeting Notes", "file_type": "txt"}
+            ]],
+            "documents": [["Content 1", "Content 2", "Content 3"]]
+        }
+        
+        # List documents
+        documents = manager.list_documents()
+        assert len(documents) == 3
+        
+        # Delete documents
+        doc_ids = ["doc1", "doc2", "doc3"]
+        delete_result = manager.delete_documents(doc_ids)
+        assert delete_result["success"] is True

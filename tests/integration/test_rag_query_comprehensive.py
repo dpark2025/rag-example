@@ -23,9 +23,9 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from rag_backend import LocalRAGSystem, LocalLLMClient
-from document_manager import DocumentManager
-from main import app
+from app.rag_backend import LocalRAGSystem, LocalLLMClient
+from app.document_manager import DocumentManager
+from app.main import app
 
 
 @pytest.mark.integration
