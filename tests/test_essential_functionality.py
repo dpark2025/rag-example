@@ -167,7 +167,7 @@ class TestEssentialFunctionality:
         assert health_data["status"] in ["healthy", "degraded"]
         
         # Test query endpoint with mock
-        with patch('main.get_rag_system') as mock_get_rag:
+        with patch('app.main.get_rag_system') as mock_get_rag:
             mock_rag = Mock()
             mock_rag.collection.count.return_value = 5
             mock_rag.rag_query.return_value = {
@@ -198,7 +198,7 @@ class TestEssentialFunctionality:
         assert "status" in health_data
         
         # Step 2: Test query endpoint with no documents (graceful handling)
-        with patch('main.get_rag_system') as mock_get_rag:
+        with patch('app.main.get_rag_system') as mock_get_rag:
             mock_rag = Mock()
             mock_rag.collection.count.return_value = 0
             mock_rag.rag_query.return_value = {
@@ -227,10 +227,10 @@ def test_comprehensive_system_validation():
     """Bonus test: Validate the entire system can start and respond."""
     try:
         # Test that all imports work
-        from rag_backend import LocalRAGSystem
-        from document_manager import DocumentManager
-        from upload_handler import UploadHandler
-        from main import app
+        from app.rag_backend import LocalRAGSystem, LocalLLMClient
+        from app.document_manager import DocumentManager
+        from app.upload_handler import UploadHandler
+        from app.main import app
         
         # Test that key classes can be instantiated
         with tempfile.TemporaryDirectory() as temp_dir:
