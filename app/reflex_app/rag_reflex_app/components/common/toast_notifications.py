@@ -141,9 +141,9 @@ def get_toast_styles(toast_type: ToastType) -> dict:
 def get_toast_icon(toast_type: ToastType) -> rx.Component:
     """Get icon for toast type."""
     icons = {
-        "success": rx.icon("check-circle", size=20, color="green.400"),
-        "error": rx.icon("x-circle", size=20, color="red.400"),
-        "warning": rx.icon("alert-triangle", size=20, color="yellow.400"),
+        "success": rx.icon("circle-check", size=20, color="green.400"),
+        "error": rx.icon("circle-x", size=20, color="red.400"),
+        "warning": rx.icon("triangle-alert", size=20, color="yellow.400"),
         "info": rx.icon("info", size=20, color="blue.400"),
         "loading": rx.spinner(size="1", color="violet.400")
     }

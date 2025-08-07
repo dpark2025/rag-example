@@ -180,7 +180,7 @@ class HelpState(rx.State):
         },
         HelpCategory.TROUBLESHOOTING.value: {
             "title": "Troubleshooting",
-            "icon": "help-circle",
+            "icon": "circle-help",
             "sections": [
                 {
                     "title": "Common Issues",
@@ -635,7 +635,7 @@ def help_panel() -> rx.Component:
 def help_button() -> rx.Component:
     """Help button to open help panel."""
     return rx.button(
-        rx.icon("help-circle", size=16),
+        rx.icon("circle-help", size=16),
         "Help",
         on_click=HelpState.toggle_help_panel,
         variant="ghost",

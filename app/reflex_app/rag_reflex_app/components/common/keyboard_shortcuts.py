@@ -63,7 +63,7 @@ class KeyboardShortcutState(rx.State):
             "description": "Show keyboard shortcuts",
             "shortcut": "Ctrl+?",
             "action": "show_help",
-            "icon": "help-circle"
+            "icon": "circle-help"
         },
         {
             "id": "clear_chat",
@@ -182,7 +182,7 @@ def command_palette_item(command: Dict) -> rx.Component:
     return rx.box(
         rx.hstack(
             # Icon
-            rx.icon(command["icon"], size=18, color="violet.400"),
+            rx.icon(str(command["icon"]), size=18, color="violet.400"),
             
             # Title and description
             rx.vstack(
@@ -203,12 +203,14 @@ def command_palette_item(command: Dict) -> rx.Component:
             ),
             
             # Keyboard shortcut
-            rx.kbd(
+            rx.code(
                 command["shortcut"],
                 color="gray.300",
                 bg="rgba(255, 255, 255, 0.1)",
                 border="1px solid rgba(255, 255, 255, 0.2)",
-                font_size="xs"
+                font_size="xs",
+                padding="2px 4px",
+                border_radius="sm"
             ),
             
             align="center",
@@ -257,7 +259,7 @@ def command_palette() -> rx.Component:
                             placeholder="Search commands...",
                             value=KeyboardShortcutState.search_term,
                             on_change=KeyboardShortcutState.update_search_term,
-                            variant="unstyled",
+                            variant="soft",
                             font_size="lg",
                             color="gray.100",
                             _placeholder={"color": "gray.400"},
@@ -294,9 +296,9 @@ def command_palette() -> rx.Component:
                         ),
                         rx.spacer(),
                         rx.hstack(
-                            rx.kbd("Enter", font_size="xs"),
+                            rx.code("Enter", font_size="xs", padding="1px 3px", border_radius="sm"),
                             rx.text("to select", font_size="xs", color="gray.500"),
-                            rx.kbd("Esc", font_size="xs"),
+                            rx.code("Esc", font_size="xs", padding="1px 3px", border_radius="sm"),
                             rx.text("to close", font_size="xs", color="gray.500"),
                             spacing="2",
                             align="center"
@@ -361,7 +363,7 @@ def help_modal() -> rx.Component:
                     # Header
                     rx.hstack(
                         rx.hstack(
-                            rx.icon("help-circle", size=24, color="violet.400"),
+                            rx.icon("circle-help", size=24, color="violet.400"),
                             rx.heading("Keyboard Shortcuts", size="5", color="gray.100"),
                             spacing="3",
                             align="center"
@@ -386,7 +388,7 @@ def help_modal() -> rx.Component:
                                 KeyboardShortcutState.commands,
                                 lambda cmd: rx.hstack(
                                     rx.hstack(
-                                        rx.icon(cmd["icon"], size=16, color="violet.400"),
+                                        rx.icon(str(cmd["icon"]), size=16, color="violet.400"),
                                         rx.vstack(
                                             rx.text(cmd["title"], font_weight="500", color="gray.100"),
                                             rx.text(cmd["description"], font_size="sm", color="gray.400"),
@@ -397,11 +399,13 @@ def help_modal() -> rx.Component:
                                         align="center",
                                         flex="1"
                                     ),
-                                    rx.kbd(
+                                    rx.code(
                                         cmd["shortcut"],
                                         color="gray.300",
                                         bg="rgba(255, 255, 255, 0.1)",
-                                        border="1px solid rgba(255, 255, 255, 0.2)"
+                                        border="1px solid rgba(255, 255, 255, 0.2)",
+                                        padding="2px 4px",
+                                        border_radius="sm"
                                     ),
                                     width="100%",
                                     align="center",
@@ -540,13 +544,14 @@ def shortcut_indicator(shortcut: str, description: str) -> rx.Component:
     """Small shortcut indicator for UI elements."""
     return rx.tooltip(
         rx.hstack(
-            rx.kbd(
+            rx.code(
                 shortcut,
                 font_size="xs",
+                padding="1px 3px",
+                border_radius="sm",
                 color="gray.400",
                 bg="rgba(255, 255, 255, 0.05)",
-                border="1px solid rgba(255, 255, 255, 0.1)",
-                padding="1"
+                border="1px solid rgba(255, 255, 255, 0.1)"
             ),
             spacing="1"
         ),

@@ -14,7 +14,7 @@ sentence-transformers>=2.2.2
 chromadb>=0.4.0
 
 # PDF processing
-PyPDF2>=3.0.1
+pypdf>=3.17.0
 PyMuPDF>=1.23.14  # Provides 'fitz' module for PDF processing
 pdfplumber>=0.10.3
 

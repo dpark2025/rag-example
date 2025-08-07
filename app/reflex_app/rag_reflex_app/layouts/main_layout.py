@@ -66,7 +66,7 @@ def header_component() -> rx.Component:
                         ),
                         hover_lift(
                             rx.button(
-                                rx.icon("help-circle", size=16),
+                                rx.icon("circle-help", size=16),
                                 variant="ghost",
                                 size="2", 
                                 color_scheme="gray",

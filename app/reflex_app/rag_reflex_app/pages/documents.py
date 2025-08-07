@@ -43,9 +43,7 @@ def documents_page() -> rx.Component:
                 width="100%",
                 min_height="100vh"
             )
-        ),
-        fallback_message="Unable to load document management interface. Please refresh the page.",
-        error_boundary_id="documents-page"
+        )
     )
     
     # Modal overlays
@@ -53,12 +51,8 @@ def documents_page() -> rx.Component:
         # Upload modal
         upload_modal(),
         
-        # Document details modal
-        rx.cond(
-            DocumentState.selected_document_for_details,
-            document_details_modal(DocumentState.selected_document_for_details),
-            rx.fragment()
-        )
+        # Document details modal (temporarily disabled)
+        rx.fragment()
     )
     
     # Complete page structure
@@ -73,11 +67,7 @@ def documents_page() -> rx.Component:
             width="100%",
             height="100%",
             spacing="0"
-        ),
-        
-        # Page metadata
-        title="Document Management - RAG System",
-        description="Manage your RAG knowledge base documents with upload, search, and organization tools"
+        )
     )
 
 

@@ -384,3 +384,27 @@ def cached_component(cache_key: str, ttl: int = 300):
             return component_func(*args, **kwargs)
         return wrapper
     return decorator
+
+
+def optimized_render(component: rx.Component, component_id: str = ""):
+    """Optimize component rendering with performance tracking."""
+    if component_id and PerformanceState.enable_component_caching:
+        # Mark component as loaded if not already
+        if not PerformanceState.is_component_loaded(component_id):
+            PerformanceState.mark_component_loaded(component_id)
+    
+    return component
+
+
+def virtualized_list(items: List[Any], item_renderer, container_height: str = "400px"):
+    """Create a virtualized list for large datasets."""
+    # Simplified virtualization - in production this would implement proper windowing
+    return rx.box(
+        rx.foreach(
+            items,
+            item_renderer
+        ),
+        height=container_height,
+        overflow_y="auto",
+        width="100%"
+    )

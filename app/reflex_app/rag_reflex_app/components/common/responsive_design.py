@@ -452,6 +452,15 @@ def responsive_card(content: rx.Component, **kwargs) -> rx.Component:
     )
 
 
+def mobile_optimized(mobile_value: str, desktop_value: str):
+    """Return mobile or desktop value based on screen size."""
+    return rx.cond(
+        ResponsiveState.is_mobile | ResponsiveState.is_tablet,
+        mobile_value,
+        desktop_value
+    )
+
+
 def breakpoint_display(content: Dict[str, rx.Component]) -> rx.Component:
     """Display different content based on breakpoint."""
     return rx.cond(

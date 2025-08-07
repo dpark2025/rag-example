@@ -8,9 +8,9 @@ Date: 2025-08-04
 import reflex as rx
 from typing import Dict, Any, List
 from ...state.document_state import DocumentState
-from ..common.responsive_design import ResponsiveState, responsive_container
+from ..common.responsive_design import ResponsiveState, responsive_container, mobile_optimized
 from ..common.accessibility import accessible_button, focus_trap, live_region
-from ..common.error_boundary import ErrorState
+from ..common.error_boundary import ErrorState, error_display
 from ..common.performance_optimizer import optimized_render
 from .file_validator import get_validation_summary, FileValidator
 
@@ -21,10 +21,10 @@ def upload_progress_bar(filename: str, progress: float, status: str, error_messa
     # Status icon with proper accessibility
     status_icon = rx.cond(
         status == "completed",
-        rx.icon("check-circle", size=16, color="green.400", aria_label="Upload completed"),
+        rx.icon("circle-check", size=16, color="green.400", aria_label="Upload completed"),
         rx.cond(
             status == "error", 
-            rx.icon("alert-circle", size=16, color="red.400", aria_label="Upload failed"),
+            rx.icon("circle-alert", size=16, color="red.400", aria_label="Upload failed"),
             rx.cond(
                 status == "uploading",
                 rx.spinner(size="2", aria_label="Uploading"),
@@ -71,19 +71,13 @@ def upload_progress_bar(filename: str, progress: float, status: str, error_messa
         # Progress bar with ARIA attributes
         rx.progress(
             value=progress,
-            max=100,
             width="100%",
             height="6px",
             color_scheme=rx.cond(
                 status == "completed",
                 "green",
                 rx.cond(status == "error", "red", "blue")
-            ),
-            aria_label=f"Upload progress for {filename}",
-            role="progressbar",
-            aria_valuenow=progress,
-            aria_valuemin=0,
-            aria_valuemax=100
+            )
         ),
         
         # Error message with proper styling
@@ -243,7 +237,7 @@ def drag_drop_zone() -> rx.Component:
 
 def upload_status_summary() -> rx.Component:
     """Summary of upload status with live updates."""
-    return aria_live_region(
+    return rx.box(
         rx.hstack(
             rx.cond(
                 DocumentState.upload_in_progress,
@@ -260,7 +254,7 @@ def upload_status_summary() -> rx.Component:
                 rx.cond(
                     DocumentState.has_upload_errors,
                     rx.hstack(
-                        rx.icon("alert-triangle", size=16, color="red.400"),
+                        rx.icon("triangle-alert", size=16, color="red.400"),
                         rx.text(
                             "Some uploads failed",
                             font_size="14px", 
@@ -272,7 +266,7 @@ def upload_status_summary() -> rx.Component:
                     rx.cond(
                         DocumentState.total_uploaded > 0,
                         rx.hstack(
-                            rx.icon("check-circle", size=16, color="green.400"),
+                            rx.icon("circle-check", size=16, color="green.400"),
                             rx.text(
                                 f"{DocumentState.total_uploaded} files uploaded successfully",
                                 font_size="14px",
@@ -336,10 +330,8 @@ def upload_modal() -> rx.Component:
                     },
                     max_files=20,
                     max_size=FileValidator.MAX_FILE_SIZE,
-                    on_upload=DocumentState.handle_file_upload,
                     border="none",
-                    width="100%",
-                    disabled=DocumentState.upload_in_progress
+                    width="100%"
                 ),
                 
                 # Upload status summary
@@ -414,7 +406,7 @@ def upload_modal() -> rx.Component:
                         color_scheme="gray",
                         on_click=DocumentState.close_upload_modal,
                         size=mobile_optimized("2", "3"),
-                        flex="1" if ResponsiveState.is_mobile else "none"
+                        flex=rx.cond(ResponsiveState.is_mobile, "1", "none")
                     ),
                     
                     # Clear all button (only show if has uploads)
@@ -426,7 +418,7 @@ def upload_modal() -> rx.Component:
                             color_scheme="red",
                             on_click=DocumentState.clear_all_uploads,
                             size=mobile_optimized("2", "3"),
-                            flex="1" if ResponsiveState.is_mobile else "none"
+                            flex=rx.cond(ResponsiveState.is_mobile, "1", "none")
                         ),
                         rx.fragment()
                     ),
@@ -438,7 +430,7 @@ def upload_modal() -> rx.Component:
                         on_click=DocumentState.close_upload_modal,
                         disabled=DocumentState.upload_in_progress,
                         size=mobile_optimized("2", "3"),
-                        flex="1" if ResponsiveState.is_mobile else "none"
+                        flex=rx.cond(ResponsiveState.is_mobile, "1", "none")
                     ),
                     
                     spacing="3",
@@ -458,45 +450,60 @@ def upload_modal() -> rx.Component:
         )
     )
     
-    # Modal wrapper with responsive sizing
-    return rx.dialog(
-        rx.dialog_trigger(
-            accessible_button(
-                rx.icon("upload", size=16),
-                "Upload Documents",
-                color_scheme="blue",
-                size="3",
-                aria_label="Open document upload dialog"
-            )
+    # Modal wrapper with responsive sizing using conditional rendering
+    return rx.cond(
+        DocumentState.is_upload_modal_open,
+        rx.box(
+            # Modal backdrop
+            rx.box(
+                on_click=DocumentState.close_upload_modal,
+                position="fixed",
+                top="0",
+                left="0",
+                width="100vw",
+                height="100vh",
+                bg="rgba(0, 0, 0, 0.5)",
+                z_index="998"
+            ),
+            
+            # Modal content
+            rx.box(
+                modal_content,
+                position="fixed",
+                top="50%",
+                left="50%",
+                transform="translate(-50%, -50%)",
+                max_width=mobile_optimized("95vw", "600px"),
+                width=mobile_optimized("95vw", "auto"),
+                max_height=mobile_optimized("90vh", "80vh"),
+                padding=mobile_optimized("4", "6"),
+                bg="rgba(15, 15, 35, 0.95)",
+                backdrop_filter="blur(20px)",
+                border="1px solid",
+                border_color="rgba(255, 255, 255, 0.1)",
+                border_radius="xl",
+                overflow_y="auto",
+                z_index="999"
+            ),
+            
+            position="fixed",
+            top="0",
+            left="0",
+            width="100vw",
+            height="100vh",
+            z_index="998"
         ),
-        
-        rx.dialog_content(
-            modal_content,
-            max_width=mobile_optimized("95vw", "600px"),
-            width=mobile_optimized("95vw", "auto"),
-            max_height=mobile_optimized("90vh", "80vh"),
-            padding=mobile_optimized("4", "6"),
-            bg="rgba(15, 15, 35, 0.95)",
-            backdrop_filter="blur(20px)",
-            border="1px solid",
-            border_color="rgba(255, 255, 255, 0.1)",
-            border_radius="xl",
-            overflow_y="auto"
-        ),
-        
-        open=DocumentState.is_upload_modal_open,
-        on_open_change=DocumentState.set_is_upload_modal_open
+        rx.fragment()
     )
 
 
 def upload_button() -> rx.Component:
     """Simple upload button that opens the modal with accessibility."""
     return accessible_button(
-        rx.icon("upload", size=16),
         "Upload Documents",
+        on_click=DocumentState.open_upload_modal,
         color_scheme="blue",
         size="3",
-        on_click=DocumentState.open_upload_modal,
         aria_label="Upload new documents to the system"
     )
 

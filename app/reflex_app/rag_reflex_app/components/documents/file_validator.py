@@ -300,14 +300,19 @@ class FileValidator:
         return cls.MAX_FILE_SIZE // (1024 * 1024)
     
     @classmethod
-    def format_file_size(cls, size_bytes: int) -> str:
-        """Format file size in human-readable format."""
-        if size_bytes < 1024:
-            return f"{size_bytes} B"
-        elif size_bytes < 1024 * 1024:
-            return f"{size_bytes / 1024:.1f} KB"
-        else:
-            return f"{size_bytes / (1024 * 1024):.1f} MB"
+    def format_file_size(cls, size_bytes) -> str:
+        """Format file size in human-readable format using rx.cond for Reflex compatibility."""
+        import reflex as rx
+        
+        return rx.cond(
+            size_bytes < 1024,
+            f"{size_bytes} B",
+            rx.cond(
+                size_bytes < 1024 * 1024,
+                f"{size_bytes / 1024:.1f} KB",
+                f"{size_bytes / (1024 * 1024):.1f} MB"
+            )
+        )
 
 
 def validate_upload_file(file_data: bytes, filename: str, 

@@ -56,15 +56,20 @@ class ErrorState(rx.State):
         # by the component that failed
 
 
-def error_display() -> rx.Component:
+def error_display(show_error=None, error_message=None, on_dismiss=None) -> rx.Component:
     """Display error messages with recovery options."""
+    # Use parameters if provided, otherwise fall back to ErrorState
+    show_condition = show_error if show_error is not None else ErrorState.has_error
+    message = error_message if error_message is not None else ErrorState.error_message
+    dismiss_action = on_dismiss if on_dismiss is not None else ErrorState.clear_error
+    
     return rx.cond(
-        ErrorState.has_error,
+        show_condition,
         rx.box(
             rx.vstack(
                 # Error header
                 rx.hstack(
-                    rx.icon("alert-circle", color="red", size=20),
+                    rx.icon("circle-alert", color="red", size=20),
                     rx.text(
                         "Error Occurred",
                         font_weight="bold",
@@ -73,9 +78,9 @@ def error_display() -> rx.Component:
                     rx.spacer(),
                     rx.icon_button(
                         rx.icon("x", size=16),
-                        on_click=ErrorState.clear_error,
+                        on_click=dismiss_action,
                         variant="ghost",
-                        size="sm"
+                        size="2"
                     ),
                     width="100%",
                     align_items="center"
@@ -83,7 +88,7 @@ def error_display() -> rx.Component:
                 
                 # Error message
                 rx.text(
-                    ErrorState.error_message,
+                    message,
                     color="gray.700",
                     margin_top="0.5rem"
                 ),
@@ -97,7 +102,7 @@ def error_display() -> rx.Component:
                             rx.button(
                                 "Retry",
                                 on_click=ErrorState.retry_action,
-                                size="sm",
+                                size="2",
                                 variant="outline",
                                 color_scheme="blue"
                             )
@@ -107,7 +112,7 @@ def error_display() -> rx.Component:
                             rx.button(
                                 "Refresh Page",
                                 on_click=rx.redirect("/"),
-                                size="sm",
+                                size="2",
                                 variant="outline",
                                 color_scheme="blue"
                             )
@@ -132,7 +137,7 @@ def error_display() -> rx.Component:
                         "Show Details"
                     ),
                     on_click=ErrorState.toggle_details,
-                    size="sm",
+                    size="2",
                     variant="ghost",
                     margin_top="0.5rem"
                 ),
@@ -156,7 +161,7 @@ def error_display() -> rx.Component:
                 ),
                 
                 width="100%",
-                spacing="0.5rem"
+                spacing="2"
             ),
             padding="1rem",
             border="1px solid",

@@ -21,7 +21,7 @@ from dataclasses import dataclass, asdict, field
 import json
 import aiofiles
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict, field_serializer
 from .error_handlers import handle_error, ApplicationError, ErrorCategory, ErrorSeverity, RecoveryAction
 
 # Configure logging
@@ -91,7 +91,8 @@ class ShareRequest(BaseModel):
     notification_email: Optional[str] = None
     custom_message: Optional[str] = None
     
-    @validator('expires_in_hours')
+    @field_validator('expires_in_hours')
+    @classmethod
     def validate_expiration(cls, v):
         if v is not None and (v < 1 or v > 8760):  # Max 1 year
             raise ValueError("Expiration must be between 1 hour and 1 year")
@@ -115,10 +116,11 @@ class ShareLink(BaseModel):
     password_hash: Optional[str] = None
     custom_message: Optional[str] = None
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict()
+    
+    @field_serializer('created_at', 'expires_at', 'last_accessed', when_used='json')
+    def serialize_datetime(self, dt: Optional[datetime]) -> Optional[str]:
+        return dt.isoformat() if dt else None
 
 class AccessAttempt(BaseModel):
     """Access attempt record."""

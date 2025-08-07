@@ -5,6 +5,21 @@ Authored by: QA/Test Engineer (Darren Fong)
 Date: 2025-08-04
 """
 
+# Suppress external library warnings at import time
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=UserWarning, module="google.*")
+warnings.filterwarnings("ignore", category=UserWarning, module="grpc.*")
+
+# Suppress cryptography warnings specifically
+try:
+    from cryptography.utils import CryptographyDeprecationWarning
+    warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
+except ImportError:
+    # If CryptographyDeprecationWarning is not available, ignore all warnings from cryptography
+    warnings.filterwarnings("ignore", module=".*cryptography.*")
+    warnings.filterwarnings("ignore", module=".*pypdf.*")
+
 import pytest
 import tempfile
 import shutil

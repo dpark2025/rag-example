@@ -81,11 +81,11 @@ class HealthMonitorState(rx.State):
 def status_icon(status: str) -> rx.Component:
     """Get status icon based on health status."""
     icons = {
-        "healthy": rx.icon("check-circle", color="green.500", size=20),
-        "degraded": rx.icon("alert-triangle", color="yellow.500", size=20),
-        "unhealthy": rx.icon("x-circle", color="red.500", size=20),
-        "unknown": rx.icon("help-circle", color="gray.500", size=20),
-        "error": rx.icon("x-octagon", color="red.600", size=20)
+        "healthy": rx.icon("circle-check", color="green.500", size=20),
+        "degraded": rx.icon("triangle-alert", color="yellow.500", size=20),
+        "unhealthy": rx.icon("circle-x", color="red.500", size=20),
+        "unknown": rx.icon("circle-help", color="gray.500", size=20),
+        "error": rx.icon("octagon-x", color="red.600", size=20)
     }
     return icons.get(status, icons["unknown"])
 

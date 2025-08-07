@@ -16,10 +16,8 @@ services:
       - PYTHONPATH=/app
       - REFLEX_HOST=0.0.0.0
       - REFLEX_PORT=3000
-      - API_BASE_URL=http://host.containers.internal:8000
-      - OLLAMA_HOST=host.containers.internal:11434
-    extra_hosts:
-      - "host.containers.internal:host-gateway"
+      - API_BASE_URL=http://rag-backend:8000
+      - OLLAMA_HOST=${OLLAMA_HOST:-host.containers.internal:11434}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/_health"]
@@ -42,9 +40,7 @@ services:
       - ./app:/app:Z
     environment:
       - PYTHONPATH=/app
-      - OLLAMA_HOST=host.containers.internal:11434
-    extra_hosts:
-      - "host.containers.internal:host-gateway"
+      - OLLAMA_HOST=${OLLAMA_HOST:-host.containers.internal:11434}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]

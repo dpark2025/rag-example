@@ -4,6 +4,7 @@ Provides REST API endpoints for the RAG functionality
 """
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, WebSocket, WebSocketDisconnect, Query, Header, Request
+from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, FileResponse, StreamingResponse
 from pydantic import BaseModel
@@ -29,10 +30,51 @@ from .sharing_service import get_sharing_service, ShareRequest, ShareLink, Acces
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifecycle events."""
+    # Startup
+    try:
+        # Initialize RAG system
+        rag_system = get_rag_system()
+        logger.info(f"RAG system initialized with {rag_system.collection.count()} documents")
+        
+        # Initialize document manager and upload handler
+        document_manager = get_document_manager()
+        upload_handler = get_upload_handler()
+        logger.info("Document management services initialized")
+        
+        # Initialize document versioning system
+        versioning = get_document_versioning()
+        logger.info("Document versioning system initialized")
+        
+        # Initialize export and sharing services
+        export_manager = get_export_manager()
+        sharing_service = get_sharing_service()
+        logger.info("Export and sharing services initialized")
+        
+        # Start health monitoring
+        await health_monitor.start_monitoring()
+        logger.info("Health monitoring started")
+        
+    except Exception as e:
+        logger.error(f"Startup error: {e}")
+        # Don't prevent startup, but log the error
+    
+    yield
+    
+    # Shutdown
+    try:
+        await health_monitor.stop_monitoring()
+        logger.info("Health monitoring stopped")
+    except Exception as e:
+        logger.error(f"Shutdown error: {e}")
+
 app = FastAPI(
     title="Local RAG System API",
     description="Fully local RAG system with ChromaDB and Ollama",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Enable CORS for frontend access
@@ -177,45 +219,7 @@ class ConflictResponse(BaseModel):
     base_version_id: str
     current_version_id: str
 
-# Startup and shutdown events
-@app.on_event("startup")
-async def startup_event():
-    """Initialize services on startup."""
-    try:
-        # Initialize RAG system
-        rag_system = get_rag_system()
-        logger.info(f"RAG system initialized with {rag_system.collection.count()} documents")
-        
-        # Initialize document manager and upload handler
-        document_manager = get_document_manager()
-        upload_handler = get_upload_handler()
-        logger.info("Document management services initialized")
-        
-        # Initialize document versioning system
-        versioning = get_document_versioning()
-        logger.info("Document versioning system initialized")
-        
-        # Initialize export and sharing services
-        export_manager = get_export_manager()
-        sharing_service = get_sharing_service()
-        logger.info("Export and sharing services initialized")
-        
-        # Start health monitoring
-        await health_monitor.start_monitoring()
-        logger.info("Health monitoring started")
-        
-    except Exception as e:
-        logger.error(f"Startup error: {e}")
-        # Don't prevent startup, but log the error
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown."""
-    try:
-        await health_monitor.stop_monitoring()
-        logger.info("Health monitoring stopped")
-    except Exception as e:
-        logger.error(f"Shutdown error: {e}")
+# Note: Startup and shutdown logic has been moved to the lifespan context manager above
 
 # API Endpoints
 @app.get("/")
@@ -1980,7 +1984,7 @@ async def external_health_api():
 
 if __name__ == "__main__":
     uvicorn.run(
-        "main:app",
+        app,  # Use the app object directly instead of string reference
         host="0.0.0.0",
         port=8000,
         reload=False,  # Set to True for development

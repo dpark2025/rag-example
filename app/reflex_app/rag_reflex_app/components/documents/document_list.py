@@ -55,16 +55,14 @@ def filter_controls() -> rx.Component:
         rx.vstack(
             rx.hstack(
                 accessible_button(
-                    rx.icon("filter", size=16),
                     f"Filters ({DocumentState.active_filter_count})",
+                    on_click=DocumentState.toggle_filter_panel,
                     variant="outline",
                     size="2",
-                    on_click=DocumentState.toggle_filter_panel,
                     aria_label="Toggle filter panel",
                     flex="1"
                 ),
                 accessible_button(
-                    rx.icon("arrow-up-down", size=16),
                     DocumentState.sort_by.title(),
                     variant="outline", 
                     size="2",
@@ -140,7 +138,7 @@ def filter_controls() -> rx.Component:
 
 def bulk_selection_controls() -> rx.Component:
     """Bulk selection and operations controls."""
-    return aria_live_region(
+    return rx.box(
         rx.hstack(
             # Selection controls
             rx.hstack(
@@ -172,7 +170,6 @@ def bulk_selection_controls() -> rx.Component:
                 DocumentState.selected_count > 0,
                 rx.hstack(
                     accessible_button(
-                        rx.icon("download", size=14),
                         rx.cond(
                             ResponsiveState.is_mobile,
                             "",
@@ -187,7 +184,6 @@ def bulk_selection_controls() -> rx.Component:
                     ),
                     
                     accessible_button(
-                        rx.icon("trash-2", size=14),
                         rx.cond(
                             ResponsiveState.is_mobile,
                             "",
@@ -213,9 +209,9 @@ def bulk_selection_controls() -> rx.Component:
             bg="rgba(59, 130, 246, 0.05)",
             border="1px solid",
             border_color="rgba(59, 130, 246, 0.2)",
-            border_radius="md"
-        ),
-        aria_live="polite"
+            border_radius="md",
+            aria_live="polite"
+        )
     )
 
 
@@ -267,7 +263,7 @@ def list_view_controls() -> rx.Component:
         # View mode toggle
         rx.hstack(
             accessible_button(
-                rx.icon("grid-3x3", size=14),
+                "",
                 variant=rx.cond(
                     DocumentState.view_mode == "grid",
                     "solid",
@@ -280,7 +276,7 @@ def list_view_controls() -> rx.Component:
                 title="Grid view"
             ),
             accessible_button(
-                rx.icon("list", size=14),
+                "",
                 variant=rx.cond(
                     DocumentState.view_mode == "list",
                     "solid",
@@ -317,7 +313,7 @@ def list_view_controls() -> rx.Component:
             DocumentState.total_pages > 1,
             rx.hstack(
                 accessible_button(
-                    rx.icon("chevron-left", size=14),
+                    "",
                     variant="ghost",
                     color_scheme="gray",
                     size="2",
@@ -331,7 +327,7 @@ def list_view_controls() -> rx.Component:
                     color="gray.400"
                 ),
                 accessible_button(
-                    rx.icon("chevron-right", size=14),
+                    "",
                     variant="ghost",
                     color_scheme="gray",
                     size="2",
@@ -356,7 +352,7 @@ def document_grid() -> rx.Component:
     """Document grid with responsive layout and virtualization."""
     return rx.cond(
         DocumentState.total_documents > 0,
-        virtualized_list(
+        rx.box(
             rx.grid(
                 rx.foreach(
                     DocumentState.filtered_documents,
@@ -364,18 +360,19 @@ def document_grid() -> rx.Component:
                 ),
                 columns=rx.cond(
                     ResponsiveState.is_mobile,
-                    1,
+                    "1",
                     rx.cond(
                         ResponsiveState.is_tablet,
-                        2,
-                        3
+                        "2",
+                        "3"
                     )
                 ),
                 spacing="4",
                 width="100%"
             ),
-            item_height=mobile_optimized(120, 140),
-            container_height="calc(100vh - 300px)"
+            height="calc(100vh - 300px)",
+            overflow_y="auto",
+            width="100%"
         ),
         empty_state()
     )
@@ -386,7 +383,7 @@ def document_list_view() -> rx.Component:
     """Document list view with compact layout."""
     return rx.cond(
         DocumentState.total_documents > 0,
-        virtualized_list(
+        rx.box(
             rx.vstack(
                 rx.foreach(
                     DocumentState.filtered_documents,
@@ -398,8 +395,9 @@ def document_list_view() -> rx.Component:
                 spacing="2",
                 width="100%"
             ),
-            item_height=mobile_optimized(80, 100),
-            container_height="calc(100vh - 300px)"
+            height="calc(100vh - 300px)",
+            overflow_y="auto",
+            width="100%"
         ),
         empty_state()
     )
@@ -407,74 +405,74 @@ def document_list_view() -> rx.Component:
 
 def confirmation_dialog() -> rx.Component:
     """Confirmation dialog for bulk operations."""
-    return rx.dialog(
-        rx.dialog_content(
-            focus_trap(
-                rx.vstack(
-                    rx.hstack(
-                        rx.icon("alert-triangle", size=20, color="red.400"),
-                        rx.text(
-                            "Confirm Action",
-                            font_size="18px",
-                            font_weight="bold",
-                            color="white"
-                        ),
-                        spacing="2",
-                        align="center"
-                    ),
-                    
+    return rx.cond(
+        DocumentState.show_confirmation_dialog,
+        rx.box(
+            rx.vstack(
+                rx.hstack(
+                    rx.icon("triangle-alert", size=20, color="red.400"),
                     rx.text(
-                        DocumentState.confirmation_message,
-                        font_size="14px",
-                        color="gray.300",
-                        line_height="1.5"
+                        "Confirm Action",
+                        font_size="18px",
+                        font_weight="bold",
+                        color="white"
+                    ),
+                    spacing="2",
+                    align="center"
+                ),
+                
+                rx.text(
+                    DocumentState.confirmation_message,
+                    font_size="14px",
+                    color="gray.300",
+                    line_height="1.5"
+                ),
+                
+                rx.hstack(
+                    accessible_button(
+                        "Cancel",
+                        variant="outline",
+                        color_scheme="gray",
+                        on_click=DocumentState.cancel_confirmation,
+                        size="3"
                     ),
                     
-                    rx.hstack(
-                        accessible_button(
-                            "Cancel",
-                            variant="outline",
-                            color_scheme="gray",
-                            on_click=DocumentState.cancel_confirmation,
-                            size="3",
-                            flex="1" if ResponsiveState.is_mobile else "none"
-                        ),
-                        
-                        accessible_button(
-                            "Confirm",
-                            color_scheme="red",
-                            on_click=DocumentState.confirm_action,
-                            disabled=DocumentState.is_processing,
-                            size="3",
-                            flex="1" if ResponsiveState.is_mobile else "none"
-                        ),
-                        
-                        spacing="3",
-                        justify="end",
-                        width="100%",
-                        direction=rx.cond(
-                            ResponsiveState.is_mobile,
-                            "column-reverse",
-                            "row"
-                        )
+                    accessible_button(
+                        "Confirm",
+                        color_scheme="red",
+                        on_click=DocumentState.confirm_action,
+                        disabled=DocumentState.is_processing,
+                        size="3"
                     ),
                     
-                    spacing="4",
+                    spacing="3",
+                    justify="end",
                     width="100%"
-                )
+                ),
+                
+                spacing="4",
+                width="100%",
+                padding="6",
+                bg="rgba(15, 15, 35, 0.95)",
+                border="1px solid",
+                border_color="rgba(255, 255, 255, 0.1)",
+                border_radius="xl",
+                max_width="400px"
             ),
             
-            max_width=mobile_optimized("95vw", "400px"),
-            padding=mobile_optimized("4", "6"),
-            bg="rgba(15, 15, 35, 0.95)",
-            backdrop_filter="blur(20px)",
-            border="1px solid",
-            border_color="rgba(255, 255, 255, 0.1)",
-            border_radius="xl"
+            # Modal backdrop
+            position="fixed",
+            top="0",
+            left="0",
+            width="100vw",
+            height="100vh",
+            bg="rgba(0, 0, 0, 0.5)",
+            display="flex",
+            align_items="center",
+            justify_content="center",
+            z_index="50"
         ),
-        
-        open=DocumentState.show_confirmation_dialog,
-        on_open_change=DocumentState.set_show_confirmation_dialog
+        rx.fragment()
     )
 
 
@@ -576,7 +574,7 @@ def documents_header() -> rx.Component:
             # Breadcrumbs
             rx.hstack(
                 accessible_button(
-                    rx.icon("home", size=14),
+                    "",
                     variant="ghost",
                     color_scheme="gray",
                     size="2",
@@ -617,12 +615,11 @@ def documents_header() -> rx.Component:
                     ResponsiveState.is_desktop,
                     rx.hstack(
                         accessible_button(
-                            rx.icon("settings", size=16),
                             "Settings",
-                            variant="outline",
+                            on_click=DocumentState.open_settings,
+                            variant="outline", 
                             color_scheme="gray",
                             size="3",
-                            on_click=DocumentState.open_settings,
                             aria_label="Document management settings"
                         ),
                         

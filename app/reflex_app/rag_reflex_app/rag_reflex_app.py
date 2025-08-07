@@ -93,18 +93,9 @@ app = rx.App(
             '<link rel="preload" href="/accessibility-icon.svg" as="image">',
             tag="head"
         ),
-    ],
-    
-    # Enable state persistence
-    state=[
-        AppState,
-        ChatState,
-        ResponsiveState,
-        AnimationState,
-        KeyboardShortcutState,
-        ToastState,
-        AccessibilityState
     ]
+    
+    # Note: State classes are automatically discovered in Reflex 0.8.4+
 )
 
 # Add pages

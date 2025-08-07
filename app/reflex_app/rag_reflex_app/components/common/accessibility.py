@@ -138,11 +138,19 @@ def accessible_button(
     """Create an accessible button with proper ARIA attributes."""
     
     # Calculate font size based on accessibility settings
-    font_size = kwargs.get("font_size", "md")
-    if AccessibilityState.font_size_multiplier != 1.0:
-        size_map = {"xs": "sm", "sm": "md", "md": "lg", "lg": "xl", "xl": "2xl"}
-        if AccessibilityState.font_size_multiplier > 1.2:
-            font_size = size_map.get(font_size, "lg")
+    font_size = rx.cond(
+        AccessibilityState.font_size_multiplier > 1.2,
+        rx.match(
+            kwargs.get("font_size", "md"),
+            ("xs", "sm"),
+            ("sm", "md"),
+            ("md", "lg"),
+            ("lg", "xl"),
+            ("xl", "2xl"),
+            "lg"  # default
+        ),
+        kwargs.get("font_size", "md")
+    )
     
     return rx.button(
         text,
@@ -334,34 +342,30 @@ def live_region(announcement_type: str = "polite") -> rx.Component:
     )
 
 
-def focus_trap(children: List[rx.Component]) -> rx.Component:
+# Alias for backward compatibility
+aria_live_region = live_region
+
+
+def accessible_region(
+    *children: rx.Component,
+    aria_label: str = "",
+    role: str = "region",
+    **kwargs
+) -> rx.Component:
+    """Create an accessible region with proper ARIA attributes."""
+    return rx.box(
+        *children,
+        role=role,
+        aria_label=aria_label,
+        **kwargs
+    )
+
+
+def focus_trap(*children: rx.Component) -> rx.Component:
     """Create a focus trap for modal dialogs."""
     return rx.box(
         *children,
-        on_key_down="""
-        function(e) {
-            if (e.key === 'Tab') {
-                const focusableElements = this.querySelectorAll(
-                    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-                );
-                const firstElement = focusableElements[0];
-                const lastElement = focusableElements[focusableElements.length - 1];
-                
-                if (e.shiftKey) {
-                    if (document.activeElement === firstElement) {
-                        lastElement.focus();
-                        e.preventDefault();
-                    }
-                } else {
-                    if (document.activeElement === lastElement) {
-                        firstElement.focus();
-                        e.preventDefault();
-                    }
-                }
-            }
-        }
-        """,
-        tab_index="-1"
+        tab_index=-1
     )
 
 

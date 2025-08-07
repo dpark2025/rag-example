@@ -6,7 +6,7 @@ Supports multiple PDF processing libraries for robust text extraction
 import logging
 import fitz  # PyMuPDF
 import pdfplumber
-import PyPDF2
+import pypdf
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
 from enum import Enum
@@ -113,7 +113,7 @@ class PDFProcessor:
     Advanced PDF processing engine with multiple extraction strategies.
     
     Features:
-    - Multiple extraction libraries (PyMuPDF, pdfplumber, PyPDF2)
+    - Multiple extraction libraries (PyMuPDF, pdfplumber, pypdf)
     - Automatic fallback between methods
     - Metadata extraction
     - Quality assessment
@@ -299,11 +299,11 @@ class PDFProcessor:
         )
     
     def _extract_with_pypdf2(self, pdf_content: bytes, filename: str) -> PDFExtractionResult:
-        """Extract using PyPDF2 - fallback method."""
+        """Extract using pypdf - fallback method."""
         import io
         
         pdf_file = io.BytesIO(pdf_content)
-        pdf_reader = PyPDF2.PdfReader(pdf_file)
+        pdf_reader = pypdf.PdfReader(pdf_file)
         
         # Extract metadata
         metadata = self._extract_pypdf2_metadata(pdf_reader, len(pdf_content))
@@ -324,8 +324,8 @@ class PDFProcessor:
                     text=page_text,
                     word_count=len(page_text.split()),
                     char_count=len(page_text),
-                    has_images=False,  # PyPDF2 doesn't easily detect images
-                    has_tables=False,  # PyPDF2 doesn't easily detect tables
+                    has_images=False,  # pypdf doesn't easily detect images
+                    has_tables=False,  # pypdf doesn't easily detect tables
                     extraction_quality=quality
                 )
                 
@@ -386,7 +386,7 @@ class PDFProcessor:
         )
     
     def _extract_pypdf2_metadata(self, pdf_reader, file_size: int) -> PDFMetadata:
-        """Extract metadata using PyPDF2."""
+        """Extract metadata using pypdf."""
         metadata = pdf_reader.metadata or {}
         
         return PDFMetadata(

@@ -17,7 +17,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
 
 # Copy application code
-COPY app/ .
+COPY app/ ./app
 
 # Create data directory
 RUN mkdir -p /app/data/chroma_db /app/data/documents
@@ -29,5 +29,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
   CMD curl -f http://localhost:8000/health || exit 1
 
-# Run FastAPI backend
-CMD ["python", "main.py"]
+# Run FastAPI backend using module approach
+CMD ["python", "-m", "app.main"]

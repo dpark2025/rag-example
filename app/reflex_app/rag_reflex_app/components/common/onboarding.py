@@ -459,7 +459,7 @@ def onboarding_modal() -> rx.Component:
 def onboarding_trigger() -> rx.Component:
     """Button to trigger onboarding for existing users."""
     return rx.button(
-        rx.icon("help-circle", size=16),
+        rx.icon("circle-help", size=16),
         "Tutorial",
         on_click=OnboardingState.start_onboarding,
         variant="ghost",

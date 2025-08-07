@@ -17,9 +17,12 @@ This file will be removed in a future version.
 ## ⚡ Production Quick Start (Recommended)
 
 ```bash
-# 1. Production deployment with monitoring
-docker-compose -f docker-compose.production.yml up -d
-docker-compose -f docker-compose.monitoring.yml up -d
+# 1. Production deployment with monitoring (use podman or docker)
+podman-compose -f docker-compose.production.yml up -d
+podman-compose -f docker-compose.monitoring.yml up -d
+
+# Alternative: Use the networking fix script for automatic configuration
+./scripts/fix-podman-networking.sh
 
 # 2. Access production interfaces
 # - Main UI: http://localhost:3000
@@ -179,10 +182,13 @@ lsof -i :11434  # Ollama (LLM server)
 ### Backend Issues
 ```bash
 # Check containers are running
-podman ps
+podman ps  # or docker ps
 
 # Clean restart
 make clean && make start
+
+# For container networking issues
+./scripts/fix-podman-networking.sh  # Auto-configure for your platform
 
 # View detailed logs
 make logs

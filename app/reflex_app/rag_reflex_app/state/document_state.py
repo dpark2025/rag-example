@@ -36,7 +36,7 @@ class UploadProgress(rx.Base):
     """Upload progress tracking."""
     task_id: str = ""
     filename: str = ""
-    progress: float = 0.0
+    progress: int = 0
     status: str = "pending"
     message: str = ""
     error_message: str = ""
@@ -62,12 +62,16 @@ class DocumentState(rx.State):
     
     # Selection and operations
     selected_documents: List[str] = []
+    selected_document_for_details: Optional[DocumentInfo] = None
     is_deleting: bool = False
+    selection_mode: bool = False
+    is_processing: bool = False
     
     # Search and filtering
     search_query: str = ""
     filter_type: str = "all"  # all, txt, processing, error
     sort_by: str = "newest"  # newest, oldest, name, size
+    show_filter_panel: bool = False
     
     # Error handling
     error_message: str = ""
@@ -427,7 +431,25 @@ class DocumentState(rx.State):
     def clear_error(self):
         """Clear error message."""
         self.error_message = ""
-        self.show_error = False
+    
+    def open_settings(self):
+        """Open settings modal or navigate to settings."""
+        # For now, this is a placeholder - could navigate to settings page
+        pass
+    
+    def toggle_filter_panel(self):
+        """Toggle the filter panel visibility."""
+        self.show_filter_panel = not self.show_filter_panel
+    
+    def toggle_sort_menu(self):
+        """Toggle the sort menu visibility."""
+        # For now, this is a placeholder
+        pass
+    
+    def download_selected_documents(self):
+        """Download selected documents."""
+        # For now, this is a placeholder - could implement ZIP download
+        pass
     
     def format_file_size(self, size_bytes: int) -> str:
         """Format file size for display."""
@@ -543,3 +565,176 @@ class DocumentState(rx.State):
             return f"{active} uploading, {completed} completed, {failed} failed"
         else:
             return f"{completed} completed, {failed} failed"
+    
+    @rx.var
+    def active_filter_count(self) -> int:
+        """Count active filters."""
+        count = 0
+        if self.filter_type and self.filter_type != "all":
+            count += 1
+        if self.search_query and self.search_query.strip():
+            count += 1
+        if self.sort_by and self.sort_by != "newest":
+            count += 1
+        return count
+    
+    @rx.var
+    def total_size_formatted(self) -> str:
+        """Get total size of all documents formatted."""
+        total_size = sum(doc.file_size for doc in self.documents)
+        return self.format_file_size(total_size)
+    
+    @rx.var
+    def total_chunks(self) -> int:
+        """Get total number of chunks across all documents."""
+        return sum(doc.chunk_count for doc in self.documents)
+    
+    @rx.var
+    def all_selected(self) -> bool:
+        """Check if all documents are selected."""
+        if not self.documents:
+            return False
+        return len(self.selected_documents) == len(self.documents)
+    
+    @rx.var
+    def some_selected(self) -> bool:
+        """Check if some (but not all) documents are selected."""
+        selected_count = len(self.selected_documents)
+        total_count = len(self.documents)
+        return selected_count > 0 and selected_count < total_count
+    
+    # Additional state variables for UI functionality
+    view_mode: str = "grid"  # grid or list
+    page_size: int = 20
+    current_page: int = 1
+    upload_in_progress: bool = False
+    has_upload_errors: bool = False
+    total_uploaded: int = 0
+    show_confirmation_dialog: bool = False
+    confirmation_message: str = ""
+    
+    def set_view_mode(self, mode: str):
+        """Set document view mode (grid or list)."""
+        self.view_mode = mode
+    
+    def next_page(self):
+        """Go to next page."""
+        if self.current_page < self.total_pages:
+            self.current_page += 1
+    
+    def previous_page(self):
+        """Go to previous page."""
+        if self.current_page > 1:
+            self.current_page -= 1
+    
+    def confirm_delete_selected(self):
+        """Show confirmation dialog for deleting selected documents."""
+        if not self.selected_documents:
+            return
+        
+        count = len(self.selected_documents)
+        self.confirmation_message = f"Are you sure you want to delete {count} selected document{'s' if count > 1 else ''}? This action cannot be undone."
+        self.show_confirmation_dialog = True
+    
+    def cancel_confirmation(self):
+        """Cancel the confirmation dialog."""
+        self.show_confirmation_dialog = False
+        self.confirmation_message = ""
+    
+    def set_show_confirmation_dialog(self, show: bool):
+        """Set confirmation dialog visibility."""
+        self.show_confirmation_dialog = show
+    
+    async def confirm_action(self):
+        """Confirm and execute the pending action."""
+        if self.show_confirmation_dialog:
+            await self.delete_selected_documents()
+        self.show_confirmation_dialog = False
+        self.confirmation_message = ""
+    
+    def set_is_upload_modal_open(self, is_open: bool):
+        """Set upload modal open state."""
+        self.is_upload_modal_open = is_open
+    
+    def clear_all_uploads(self):
+        """Clear all upload progress items."""
+        self.upload_progress = {}
+    
+    @rx.var
+    def total_pages(self) -> int:
+        """Calculate total pages based on filtered documents and page size."""
+        total_docs = len(self.get_filtered_documents)
+        return max(1, (total_docs + self.page_size - 1) // self.page_size)
+    
+    @rx.var
+    def start_index(self) -> int:
+        """Get start index for current page."""
+        return (self.current_page - 1) * self.page_size
+    
+    @rx.var
+    def end_index(self) -> int:
+        """Get end index for current page."""
+        total_docs = len(self.get_filtered_documents)
+        return min(self.start_index + self.page_size, total_docs)
+    
+    @rx.var
+    def filtered_documents(self) -> List[DocumentInfo]:
+        """Get paginated filtered documents for current page."""
+        all_docs = self.get_filtered_documents
+        start = self.start_index
+        end = self.end_index
+        return all_docs[start:end]
+    
+    @rx.var
+    def completed_uploads(self) -> int:
+        """Get count of completed uploads."""
+        return len([p for p in self.upload_progress.values() if p.status == "completed"])
+    
+    @rx.var
+    def total_uploads(self) -> int:
+        """Get total upload count."""
+        return len(self.upload_progress)
+    
+    def show_document_menu(self, doc_id: str):
+        """Show document context menu."""
+        # For now, this is a placeholder - could show a dropdown menu
+        pass
+    
+    def view_document_details(self, doc_id: str):
+        """View document details."""
+        # For now, this is a placeholder - could show a details modal
+        pass
+    
+    def download_document(self, doc_id: str):
+        """Download a single document."""
+        # For now, this is a placeholder - could trigger download
+        pass
+    
+    def confirm_delete_document(self, doc_id: str):
+        """Confirm deletion of a single document."""
+        # Set up the confirmation for single document deletion
+        doc = next((d for d in self.documents if d.doc_id == doc_id), None)
+        if doc:
+            self.confirmation_message = f"Are you sure you want to delete '{doc.title}'? This action cannot be undone."
+            self.show_confirmation_dialog = True
+            # Store the doc_id for the actual deletion
+            self.selected_documents = [doc_id]
+    
+    # Additional UI state variables for document details modal
+    show_document_details: bool = False
+    selected_document_id: str = ""
+    
+    def set_show_document_details(self, show: bool):
+        """Set document details modal visibility."""
+        self.show_document_details = show
+        if not show:
+            self.selected_document_id = ""
+    
+    def close_document_details(self):
+        """Close document details modal."""
+        self.show_document_details = False
+        self.selected_document_id = ""
+    
+    def is_selected(self, doc_id: str) -> bool:
+        """Check if a document is selected - for use in components."""
+        return doc_id in self.selected_documents
