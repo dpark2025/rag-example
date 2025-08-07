@@ -77,7 +77,12 @@ stop:
 
 # View logs
 logs:
-	podman-compose -f docker-compose.backend.yml logs -f
+	@echo "📋 Showing logs for all services..."
+	@echo "=== RAG Backend Logs ==="
+	@podman-compose -f docker-compose.backend.yml logs --tail 20 rag-backend || true
+	@echo ""
+	@echo "=== ChromaDB Logs ==="
+	@podman-compose -f docker-compose.backend.yml logs --tail 20 chromadb || true
 
 # Shell into RAG app container
 shell-rag:

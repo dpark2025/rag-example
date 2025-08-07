@@ -2,7 +2,31 @@
 
 A **production-ready, fully local RAG (Retrieval-Augmented Generation) system** with a comprehensive document management interface. This enterprise-grade system runs completely offline, combining intelligent document processing with local LLM generation to create a powerful question-answering platform that processes your documents without external API calls.
 
-**🚀 Current Status**: **PRODUCTION READY** - Feature-complete system with full document lifecycle management, PDF processing, monitoring stack, and enterprise-grade capabilities.
+**🚀 Current Status**: **ENHANCED & STABLE** - Core RAG functionality restored with DOM-stable architecture. Features system monitoring, document upload, enhanced chat with source attribution, and responsive design.
+
+## 🆕 Latest Updates
+
+### Enhanced RAG Implementation
+- ✅ **DOM-Stable Architecture** - Zero React reconciliation errors
+- ✅ **System Status Monitoring** - Real-time health checks for all services
+- ✅ **Enhanced Chat Interface** - Source attribution with confidence scores
+- ✅ **Document Upload System** - Modal-based upload with drag-and-drop
+- ✅ **Responsive Design** - Mobile-first UI that works across devices
+- ✅ **Backend Integration Ready** - Prepared for full RAG pipeline connection
+
+**Current Version:**
+- `rag_reflex_app_minimal.py` - Stable architecture with all essential features
+
+See **[ENHANCED_RAG_IMPLEMENTATION.md](ENHANCED_RAG_IMPLEMENTATION.md)** for detailed implementation notes.
+
+## 📚 Documentation
+
+For complete documentation, guides, and API reference, see:
+
+- **[📋 Command Validation Plan](COMMAND_VALIDATION_PLAN.md)** - Complete testing and validation procedures
+- **[🚀 Enhanced RAG Implementation](ENHANCED_RAG_IMPLEMENTATION.md)** - Implementation details and architecture
+- **[🔧 Troubleshooting Guide](TROUBLESHOOTING_GUIDE.md)** - Common issues and solutions
+- **[📊 Expected Outputs](EXPECTED_OUTPUTS.md)** - Sample outputs and testing data
 
 ## 🎯 Features
 
@@ -192,18 +216,21 @@ The system provides a comprehensive REST API with full v1 endpoints:
 ```
 rag-example/
 ├── app/
-│   ├── reflex_app/        # Reflex UI application
-│   │   ├── components/    # UI components (chat, documents, etc.)
-│   │   ├── state/         # State management
-│   │   ├── services/      # API client
-│   │   └── pages/         # Page routes
+│   ├── reflex_app/        # Reflex UI application (clean minimal architecture)
+│   │   ├── rag_reflex_app/
+│   │   │   ├── __init__.py
+│   │   │   ├── pages/
+│   │   │   │   ├── __init__.py
+│   │   │   │   └── index_minimal.py      # Single working UI page
+│   │   │   └── rag_reflex_app_minimal.py # Main application
+│   │   ├── requirements.txt
+│   │   ├── rxconfig.py                   # Configuration
+│   │   └── uploaded_files/               # File storage
 │   ├── main.py            # FastAPI backend
 │   ├── rag_backend.py     # RAG processing engine
 │   └── requirements.txt   # Backend dependencies
 ├── requirements.reflex.txt # Reflex UI dependencies
 ├── docs/                  # Documentation
-│   ├── reflex_migration_progress.md
-│   └── guided_test.md
 └── scripts/               # Utility scripts
 ```
 
@@ -354,4 +381,4 @@ make setup
 docker stats  # or podman stats
 ```
 
-For more detailed troubleshooting, see [docs/guided_test.md](docs/guided_test.md)
+For more detailed troubleshooting, see [TROUBLESHOOTING_GUIDE.md](TROUBLESHOOTING_GUIDE.md)

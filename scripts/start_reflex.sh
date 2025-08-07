@@ -1,9 +1,9 @@
 #!/bin/bash
-"""
-Reflex UI Startup Script
-========================
-Starts the Reflex frontend with proper configuration and error handling.
-"""
+#
+# Reflex UI Startup Script
+# ========================
+# Starts the Reflex frontend with proper configuration and error handling.
+#
 
 set -e  # Exit on any error
 

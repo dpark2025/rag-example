@@ -10,7 +10,6 @@ services:
       - "8000:8000"
     volumes:
       - ./data:/app/data:Z
-      - ./app:/app:Z
     environment:
       - PYTHONPATH=/app
       - OLLAMA_HOST=10.0.7.1:11434
