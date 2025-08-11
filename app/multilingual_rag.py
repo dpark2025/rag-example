@@ -407,7 +407,7 @@ class MultilingualRAGSystem:
                 context_used=len(search_results),
                 context_tokens=total_tokens,
                 efficiency_ratio=efficiency_ratio,
-                translation_performed=False,  # TODO: Implement translation
+                translation_performed=False
                 language_mixing_detected=language_mixing_detected,
                 confidence_score=confidence_score
             )
