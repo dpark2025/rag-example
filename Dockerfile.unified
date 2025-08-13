@@ -1,0 +1,75 @@
+# Unified RAG Application Container
+FROM python:3.11-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    supervisor \
+    build-essential \
+    unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 20 for Reflex frontend (required for react-router)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements and install Python dependencies
+COPY requirements*.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install ChromaDB and Reflex
+RUN pip install chromadb reflex
+
+# Copy application code and data
+COPY ./app ./app
+COPY ./data ./data
+
+# Pre-build Reflex assets if they don't exist
+WORKDIR /app/app/reflex_app
+RUN if [ ! -d ".web" ]; then reflex init --name rag_reflex_app --template blank || true; fi
+
+# Create directories for logs and scripts
+WORKDIR /app
+RUN mkdir -p /var/log/supervisor /app/scripts /app/chroma_data
+
+# Create startup scripts
+RUN printf '#!/bin/bash\nexport CHROMA_SERVER_HOST=0.0.0.0\nexport CHROMA_SERVER_HTTP_PORT=8002\nexport CHROMA_DB_IMPL=duckdb+parquet\nexport CHROMA_PERSIST_DIRECTORY=/app/chroma_data\nchroma run --host 0.0.0.0 --port 8002 --path /app/chroma_data\n' > /app/scripts/start-chromadb.sh
+
+RUN printf '#!/bin/bash\ncd /app\nexport PYTHONPATH=/app\nexport DEPLOYMENT_MODE=container\nexport OLLAMA_HOST=${OLLAMA_HOST:-host.containers.internal:11434}\nuvicorn app.main:app --host 0.0.0.0 --port 8000\n' > /app/scripts/start-rag-backend.sh
+
+RUN printf '#!/bin/bash\ncd /app/app/reflex_app\nexport PYTHONPATH=/app\nreflex run --frontend-port 3000 --backend-port 3001 --backend-host 0.0.0.0\n' > /app/scripts/start-reflex-frontend.sh
+
+# Create health check scripts
+RUN printf '#!/bin/bash\ncurl -sf http://localhost:8002/api/v1/heartbeat\n' > /app/scripts/health-chromadb.sh
+
+RUN printf '#!/bin/bash\ncurl -sf http://localhost:8000/health\n' > /app/scripts/health-rag-backend.sh
+
+RUN printf '#!/bin/bash\ncurl -sf http://localhost:3000/\n' > /app/scripts/health-reflex.sh
+
+# Create orchestration script
+RUN printf '#!/bin/bash\nset -e\necho "Starting ChromaDB..."\n/app/scripts/start-chromadb.sh &\nCHROMA_PID=$!\necho "Waiting for ChromaDB to be ready..."\nfor i in {1..30}; do\n  if /app/scripts/health-chromadb.sh > /dev/null 2>&1; then\n    echo "ChromaDB is ready"\n    break\n  fi\n  echo "Waiting for ChromaDB ($i/30)..."\n  sleep 2\ndone\n\necho "Starting RAG Backend..."\n/app/scripts/start-rag-backend.sh &\nRAG_PID=$!\necho "Waiting for RAG Backend to be ready..."\nfor i in {1..30}; do\n  if /app/scripts/health-rag-backend.sh > /dev/null 2>&1; then\n    echo "RAG Backend is ready"\n    break\n  fi\n  echo "Waiting for RAG Backend ($i/30)..."\n  sleep 2\ndone\n\necho "Starting Reflex Frontend..."\n/app/scripts/start-reflex-frontend.sh &\nREFLEX_PID=$!\necho "Waiting for Reflex Frontend to be ready..."\nfor i in {1..30}; do\n  if /app/scripts/health-reflex.sh > /dev/null 2>&1; then\n    echo "Reflex Frontend is ready"\n    break\n  fi\n  echo "Waiting for Reflex Frontend ($i/30)..."\n  sleep 2\ndone\n\necho "All services started successfully!"\necho "ChromaDB PID: $CHROMA_PID"\necho "RAG Backend PID: $RAG_PID" \necho "Reflex Frontend PID: $REFLEX_PID"\n\nwait\n' > /app/scripts/orchestrate-startup.sh
+
+# Make all scripts executable
+RUN chmod +x /app/scripts/*.sh
+
+# Create supervisord configuration
+RUN printf '[supervisord]\nnodaemon=true\nlogfile=/var/log/supervisor/supervisord.log\npidfile=/var/run/supervisord.pid\nuser=root\n\n[program:chromadb]\ncommand=/app/scripts/start-chromadb.sh\npriority=10\nautostart=true\nautorestart=true\nstderr_logfile=/var/log/supervisor/chromadb.err.log\nstdout_logfile=/var/log/supervisor/chromadb.out.log\nuser=root\n\n[program:rag-backend]\ncommand=/app/scripts/start-rag-backend.sh\npriority=20\nautostart=true\nautorestart=true\nstderr_logfile=/var/log/supervisor/rag-backend.err.log\nstdout_logfile=/var/log/supervisor/rag-backend.out.log\nenvironment=OLLAMA_HOST="host.containers.internal:11434",DEPLOYMENT_MODE="container"\nuser=root\n\n[program:reflex-frontend]\ncommand=/app/scripts/start-reflex-frontend.sh\npriority=30\nautostart=true\nautorestart=true\nstderr_logfile=/var/log/supervisor/reflex-frontend.err.log\nstdout_logfile=/var/log/supervisor/reflex-frontend.out.log\nuser=root\n' > /etc/supervisor/conf.d/supervisord.conf
+
+# Set default environment variables
+ENV OLLAMA_HOST=host.containers.internal:11434
+ENV DEPLOYMENT_MODE=container
+
+# Expose ports
+EXPOSE 3000 3001 8000 8002
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -sf http://localhost:8000/health && \
+        curl -sf http://localhost:8002/api/v1/heartbeat && \
+        curl -sf http://localhost:3000/
+
+# Start supervisord
+CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

@@ -1,6 +1,8 @@
 """Minimal index page without complex components."""
 
 import reflex as rx
+import httpx
+import asyncio
 
 class MinimalChatState(rx.State):
     """Enhanced minimal chat state with system status and document features."""
@@ -17,24 +19,64 @@ class MinimalChatState(rx.State):
     documents_count: int = 3
     show_upload_modal: bool = False
     
-    def add_message(self):
+    async def add_message(self):
         """Add a message with enhanced functionality."""
         if self.current_input.strip():
+            user_question = self.current_input
+            
             # Add user message
             self.messages.append({
-                "text": self.current_input,
+                "text": user_question,
                 "sender": "user",
                 "timestamp": "now"
             })
             
-            # Mock AI response
-            self.messages.append({
-                "text": f"I understand you asked: '{self.current_input}'. This is a mock response showing the enhanced RAG system.",
-                "sender": "assistant",
-                "timestamp": "now"
-            })
-            
+            # Clear input immediately
             self.current_input = ""
+            
+            try:
+                # Make API call to RAG backend
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    response = await client.post(
+                        "http://localhost:8000/query",
+                        json={"question": user_question}
+                    )
+                    response.raise_for_status()
+                    data = response.json()
+                    
+                    # Add AI response
+                    ai_response = data.get("answer", "Sorry, I couldn't process your question.")
+                    sources = data.get("sources", [])
+                    
+                    # Format response with sources if available
+                    response_text = ai_response
+                    if sources:
+                        response_text += f"\n\nSources: {len(sources)} document(s) found"
+                    
+                    self.messages.append({
+                        "text": response_text,
+                        "sender": "assistant",
+                        "timestamp": "now"
+                    })
+                    
+            except httpx.TimeoutException:
+                self.messages.append({
+                    "text": "⚠️ Request timed out. The RAG backend may be processing your query. Please try again.",
+                    "sender": "assistant",
+                    "timestamp": "now"
+                })
+            except httpx.HTTPStatusError as e:
+                self.messages.append({
+                    "text": f"⚠️ API Error: {e.response.status_code}. Please check if the RAG backend is running.",
+                    "sender": "assistant", 
+                    "timestamp": "now"
+                })
+            except Exception as e:
+                self.messages.append({
+                    "text": f"⚠️ Connection error: {str(e)}. Please verify the RAG backend is running on port 8000.",
+                    "sender": "assistant",
+                    "timestamp": "now"
+                })
     
     def toggle_system_panel(self):
         """Toggle the system status panel."""
@@ -44,9 +86,40 @@ class MinimalChatState(rx.State):
         """Toggle document upload modal."""
         self.show_upload_modal = not self.show_upload_modal
     
-    def refresh_health(self):
-        """Simulate health check refresh."""
-        self.embeddings_healthy = not self.embeddings_healthy
+    async def refresh_health(self):
+        """Check actual system health."""
+        try:
+            # Check RAG backend health
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                # Check backend health endpoint
+                backend_response = await client.get("http://localhost:8000/health")
+                backend_health = backend_response.status_code == 200
+                
+                # Parse health data if available
+                if backend_health:
+                    health_data = backend_response.json()
+                    self.llm_healthy = health_data.get("ollama_healthy", True)
+                    self.vector_db_healthy = health_data.get("chromadb_healthy", True)
+                    self.embeddings_healthy = health_data.get("embeddings_healthy", False)
+                else:
+                    self.llm_healthy = False
+                    self.vector_db_healthy = False
+                    self.embeddings_healthy = False
+                
+                # Update document count
+                try:
+                    count_response = await client.get("http://localhost:8000/documents/count")
+                    if count_response.status_code == 200:
+                        count_data = count_response.json()
+                        self.documents_count = count_data.get("count", 0)
+                except:
+                    pass
+                    
+        except Exception:
+            # If health check fails, mark everything as unhealthy
+            self.llm_healthy = False
+            self.vector_db_healthy = False
+            self.embeddings_healthy = False
 
 def minimal_index_page() -> rx.Component:
     """Minimal functional page."""

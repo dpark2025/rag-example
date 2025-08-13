@@ -276,7 +276,7 @@ class LocalRAGSystem:
         
         # RAG efficiency settings
         self.max_context_tokens = 2000  # Adjust based on your LLM
-        self.similarity_threshold = 0.6  # Minimum relevance score (lowered for better recall)
+        self.similarity_threshold = 0.25  # Minimum relevance score (balanced for precision vs recall)
         self.chunk_size = 400  # Optimal chunk size for most LLMs
         self.chunk_overlap = 50  # Overlap between chunks
         
@@ -693,6 +693,27 @@ class LocalRAGSystem:
         
         return self.llm_client.chat(messages, temperature=0.3, max_tokens=500)
     
+    def generate_general_answer(self, question: str) -> str:
+        """Generate answer using general knowledge without document context."""
+        # General-purpose system prompt for fallback responses
+        system_prompt = """You are a helpful AI assistant. Answer questions accurately and helpfully using your general knowledge. 
+Be concise but informative. If you're uncertain about something, acknowledge the uncertainty. 
+Provide practical and useful information when possible."""
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": question}
+        ]
+        
+        try:
+            answer = self.llm_client.chat(messages, temperature=0.4, max_tokens=600)
+            logger.info(f"Generated general knowledge response ({len(answer)} chars)")
+            return answer
+        except Exception as e:
+            logger.error(f"Failed to generate general answer: {e}")
+            return ("I apologize, but I'm currently unable to provide an answer to your question. "
+                   "This could be due to a temporary service issue. Please try again later.")
+    
     async def rag_query_async(self, question: str, max_chunks: int = None) -> Dict:
         """Async RAG query with caching and request coalescing."""
         if not question or not question.strip():
@@ -784,11 +805,20 @@ class LocalRAGSystem:
             # Check if we found any documents
             if not docs:
                 logger.warning(f"No relevant documents found for query: '{question[:50]}...'")
-                fallback_answer = ("I couldn't find any relevant documents to answer your question. "
-                                 "This might be because:\n"
-                                 "1. No documents match your query well enough\n"
-                                 "2. The similarity threshold is too high\n"
-                                 "3. The documents don't contain relevant information")
+                logger.info("Falling back to general knowledge response")
+                
+                # Try to generate a general knowledge response
+                try:
+                    fallback_answer = self.generate_general_answer(question)
+                    response_type = "general"
+                    fallback_reason = "no_relevant_documents"
+                except Exception as e:
+                    logger.error(f"General knowledge fallback failed: {e}")
+                    fallback_answer = ("I couldn't find any relevant documents to answer your question, "
+                                     "and I'm currently unable to provide a general response. "
+                                     "Please try rephrasing your question or check back later.")
+                    response_type = "error"
+                    fallback_reason = "llm_unavailable"
                 
                 return {
                     "answer": fallback_answer,
@@ -797,6 +827,8 @@ class LocalRAGSystem:
                     "context_tokens": 0,
                     "efficiency_ratio": 0.0,
                     "cache_hit": False,
+                    "response_type": response_type,
+                    "fallback_reason": fallback_reason,
                     "query_stats": {
                         "similarity_threshold": self.similarity_threshold,
                         "total_documents": self.collection.count()
@@ -824,7 +856,9 @@ class LocalRAGSystem:
                 "context_tokens": int(total_context_tokens),
                 "efficiency_ratio": len(docs) / max(total_context_tokens, 1) * 1000,  # chunks per 1000 tokens
                 "query_time": round(query_time, 3),
-                "cache_hit": False
+                "cache_hit": False,
+                "response_type": "rag",
+                "fallback_reason": None
             }
             
             logger.info(f"RAG query computed in {query_time:.3f}s: {len(docs)} docs, {int(total_context_tokens)} tokens")
@@ -842,7 +876,9 @@ class LocalRAGSystem:
                 "efficiency_ratio": 0.0,
                 "error": f"Pipeline error: {str(e)}",
                 "query_time": round(query_time, 3),
-                "cache_hit": False
+                "cache_hit": False,
+                "response_type": "error",
+                "fallback_reason": "pipeline_error"
             }
     
     def rag_query(self, question: str, max_chunks: int = None) -> Dict:

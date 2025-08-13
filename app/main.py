@@ -102,6 +102,8 @@ class QueryResponse(BaseModel):
     context_used: int
     context_tokens: int
     efficiency_ratio: float
+    response_type: Optional[str] = "rag"  # "rag", "general", or "error"
+    fallback_reason: Optional[str] = None  # Reason for fallback when applicable
 
 class HealthResponse(BaseModel):
     status: str
@@ -568,7 +570,9 @@ async def query_knowledge_base(request: QueryRequest):
         "context_used": 0,
         "context_tokens": 0,
         "efficiency_ratio": 0.0,
-        "error": app_error.to_dict()
+        "error": app_error.to_dict(),
+        "response_type": "error",
+        "fallback_reason": "api_error"
     }
 
 # Processing Status Endpoints
@@ -743,24 +747,25 @@ async def get_settings():
         "chunk_overlap": rag_sys.chunk_overlap
     }
 
-@app.post("/settings")
-async def update_settings(
-    similarity_threshold: Optional[float] = None,
-    max_context_tokens: Optional[int] = None,
-    chunk_size: Optional[int] = None,
+class SettingsUpdate(BaseModel):
+    similarity_threshold: Optional[float] = None
+    max_context_tokens: Optional[int] = None
+    chunk_size: Optional[int] = None
     chunk_overlap: Optional[int] = None
-):
+
+@app.post("/settings")
+async def update_settings(settings: SettingsUpdate):
     """Update RAG system settings"""
     try:
         rag_sys = get_rag_system()
-        if similarity_threshold is not None:
-            rag_sys.similarity_threshold = similarity_threshold
-        if max_context_tokens is not None:
-            rag_sys.max_context_tokens = max_context_tokens
-        if chunk_size is not None:
-            rag_sys.chunk_size = chunk_size
-        if chunk_overlap is not None:
-            rag_sys.chunk_overlap = chunk_overlap
+        if settings.similarity_threshold is not None:
+            rag_sys.similarity_threshold = settings.similarity_threshold
+        if settings.max_context_tokens is not None:
+            rag_sys.max_context_tokens = settings.max_context_tokens
+        if settings.chunk_size is not None:
+            rag_sys.chunk_size = settings.chunk_size
+        if settings.chunk_overlap is not None:
+            rag_sys.chunk_overlap = settings.chunk_overlap
         
         return {"message": "Settings updated successfully"}
     except Exception as e:
@@ -1936,7 +1941,7 @@ async def external_query_api(
             raise HTTPException(status_code=401, detail="Invalid API key")
         
         rag_system = get_rag_system()
-        response = await rag_system.query(
+        response = await rag_system.rag_query_async(
             request.question,
             max_chunks=request.max_chunks or 5
         )
@@ -1946,7 +1951,9 @@ async def external_query_api(
             sources=response["sources"],
             context_used=response["context_used"],
             context_tokens=response["context_tokens"],
-            efficiency_ratio=response["efficiency_ratio"]
+            efficiency_ratio=response["efficiency_ratio"],
+            response_type=response.get("response_type", "rag"),
+            fallback_reason=response.get("fallback_reason")
         )
         
     except HTTPException:

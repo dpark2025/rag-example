@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Chat Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        .chat-container {
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            height: 400px;
+            overflow-y: auto;
+            background-color: #2a2a2a;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .user {
+            background-color: #0066cc;
+            text-align: right;
+        }
+        .assistant {
+            background-color: #333;
+        }
+        .input-container {
+            display: flex;
+            gap: 10px;
+        }
+        #messageInput {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background-color: #333;
+            color: white;
+        }
+        #sendButton {
+            padding: 10px 20px;
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #sendButton:hover {
+            background-color: #0052a3;
+        }
+        .status {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <h1>🤖 RAG System Test</h1>
+    
+    <div class="chat-container" id="chatContainer">
+        <div class="message assistant">
+            <strong>Assistant:</strong> Hello! I'm ready to answer questions about your documents. The backend has 104 documents loaded. Try asking me something!
+        </div>
+    </div>
+    
+    <div class="input-container">
+        <input type="text" id="messageInput" placeholder="Type your message here..." />
+        <button id="sendButton">Send</button>
+    </div>
+    
+    <div class="status" id="status">Ready</div>
+
+    <script>
+        const chatContainer = document.getElementById('chatContainer');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const status = document.getElementById('status');
+
+        function addMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            messageDiv.innerHTML = `<strong>${sender === 'user' ? 'You' : 'Assistant'}:</strong> ${text}`;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            // Add user message
+            addMessage(message, 'user');
+            messageInput.value = '';
+            
+            // Update status
+            status.textContent = 'Sending request...';
+            sendButton.disabled = true;
+
+            try {
+                const response = await fetch('http://localhost:8000/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        question: message,
+                        max_chunks: 3,
+                        conversation_history: [],
+                        session_upload_count: 0
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    let answer = data.answer || 'No response received';
+                    
+                    // Add sources if available
+                    if (data.sources && data.sources.length > 0) {
+                        const sourceNames = data.sources.map(s => `📄 ${s.title}`).join(', ');
+                        answer += `\n\n<em>Sources: ${sourceNames}</em>`;
+                    }
+                    
+                    addMessage(answer, 'assistant');
+                    status.textContent = `Response received (${data.context_used || 0} chunks used)`;
+                } else {
+                    addMessage(`HTTP Error ${response.status}: ${await response.text()}`, 'assistant');
+                    status.textContent = `Error: HTTP ${response.status}`;
+                }
+            } catch (error) {
+                addMessage(`Connection error: ${error.message}`, 'assistant');
+                status.textContent = `Connection error: ${error.message}`;
+            }
+
+            sendButton.disabled = false;
+        }
+
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Test backend connection on load
+        window.addEventListener('load', async function() {
+            try {
+                const response = await fetch('http://localhost:8000/health');
+                const health = await response.json();
+                status.textContent = `Backend status: ${health.status} (${health.document_count} documents)`;
+            } catch (error) {
+                status.textContent = `Backend connection failed: ${error.message}`;
+            }
+        });
+    </script>
+</body>
+</html>
